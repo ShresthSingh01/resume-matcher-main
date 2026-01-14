@@ -3,29 +3,59 @@ import uuid
 from typing import List, Optional, Dict
 import json
 
-DB_FILE = "data/candidates.db"
+DB_FILE = "data/valid_candidates.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS candidates (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            resume_text TEXT,
-            job_description TEXT,
-            match_score REAL,
-            interview_score REAL,
-            final_score REAL,
-            status TEXT,
-            feedback_data TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS candidates (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                resume_text TEXT,
+                job_description TEXT,
+                match_score REAL,
+                interview_score REAL,
+                final_score REAL,
+                status TEXT,
+                feedback_data TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS interview_sessions (
+                session_id TEXT PRIMARY KEY,
+                candidate_id TEXT,
+                role TEXT,
+                current_question TEXT,
+                scores TEXT, -- JSON list of scores
+                is_active BOOLEAN,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS interview_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                role TEXT, -- user, assistant
+                content TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(session_id) REFERENCES interview_sessions(session_id)
+            )
+        ''')
+        conn.commit()
+        conn.close()
+        print(f"✅ Database initialized at {DB_FILE}")
+    except Exception as e:
+        print(f"❌ Database Init Error: {e}")
+
+
+def get_conn():
+    return sqlite3.connect(DB_FILE)
 
 def add_candidate(name: str, resume_text: str, jd: str, match_score: float) -> str:
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     c = conn.cursor()
     cid = str(uuid.uuid4())
     c.execute('''
@@ -37,20 +67,16 @@ def add_candidate(name: str, resume_text: str, jd: str, match_score: float) -> s
     return cid
 
 def get_leaderboard() -> List[Dict]:
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute('SELECT * FROM candidates ORDER BY match_score DESC')
     rows = c.fetchall()
     conn.close()
-    
-    results = []
-    for row in rows:
-        results.append(dict(row))
-    return results
+    return [dict(row) for row in rows]
 
 def get_candidate(cid: str) -> Optional[Dict]:
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
     c.execute('SELECT * FROM candidates WHERE id = ?', (cid,))
@@ -61,7 +87,7 @@ def get_candidate(cid: str) -> Optional[Dict]:
     return None
 
 def update_candidate_interview(cid: str, interview_score: float, final_score: float, feedback: dict):
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     c = conn.cursor()
     c.execute('''
         UPDATE candidates 
@@ -71,9 +97,77 @@ def update_candidate_interview(cid: str, interview_score: float, final_score: fl
     conn.commit()
     conn.close()
 
+# --- New Session Functions ---
+
+def save_session_db(session_id: str, candidate_id: str, role: str, is_active: bool = True):
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        c.execute('''
+            INSERT OR REPLACE INTO interview_sessions (session_id, candidate_id, role, current_question, scores, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (session_id, candidate_id, role, "", "[]", is_active))
+        conn.commit()
+    except Exception as e:
+        print(f"DB Error save_session: {e}")
+    finally:
+        conn.close()
+
+def get_session_db(session_id: str):
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM interview_sessions WHERE session_id=?", (session_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        return dict(row)
+    return None
+
+def update_session_db(session_id: str, current_question: str, scores: list, is_active: bool):
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        c.execute('''
+            UPDATE interview_sessions 
+            SET current_question = ?, scores = ?, is_active = ?
+            WHERE session_id = ?
+        ''', (current_question, json.dumps(scores), is_active, session_id))
+        conn.commit()
+    except Exception as e:
+        print(f"DB Error update_session: {e}")
+    finally:
+        conn.close()
+
+def log_message_db(session_id: str, role: str, content: str):
+    conn = get_conn()
+    c = conn.cursor()
+    try:
+        c.execute('''
+            INSERT INTO interview_messages (session_id, role, content)
+            VALUES (?, ?, ?)
+        ''', (session_id, role, content))
+        conn.commit()
+    except Exception as e:
+        print(f"DB Error log_message: {e}")
+    finally:
+        conn.close()
+
+def get_session_messages(session_id: str):
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute("SELECT * FROM interview_messages WHERE session_id=? ORDER BY timestamp ASC", (session_id,))
+    rows = c.fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
 def clear_db():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_conn()
     c = conn.cursor()
     c.execute('DELETE FROM candidates')
+    c.execute('DELETE FROM interview_sessions')
+    c.execute('DELETE FROM interview_messages')
     conn.commit()
     conn.close()
+

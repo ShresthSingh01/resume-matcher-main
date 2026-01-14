@@ -17,7 +17,7 @@
 
         <!-- HEADER -->
         <header>
-            <h1>AI Resume Architect</h1>
+            <h1>Virex AI</h1>
             <p class="subtitle">Prepare for your next big role with enterprise-grade resume analysis and AI-driven
                 interview simulations.</p>
         </header>
@@ -68,10 +68,9 @@
                     <h2>Candidate Leaderboard</h2>
                     <div style="display:flex; gap:1rem;">
                         <button onclick="clearLeaderboard()" class="btn"
-                            style="background:transparent; border:1px solid rgba(255,100,100,0.3); color:rgba(255,100,100,0.8);">Clear
+                            style="color:var(--error); border:1px solid var(--error); background: rgba(255, 0, 85, 0.1);">Clear
                             All</button>
-                        <button onclick="location.reload()" class="btn"
-                            style="background:transparent; border:1px solid rgba(255,255,255,0.1);">Upload New</button>
+                        <button onclick="location.reload()" class="btn btn-secondary">Upload New</button>
                     </div>
                 </div>
 
@@ -100,9 +99,7 @@
             <div class="card" style="text-align:center; max-width: 800px; margin: 0 auto;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
                     <h2>Match Analysis</h2>
-                    <button onclick="location.reload()" class="btn"
-                        style="background:transparent; border:1px solid rgba(255,255,255,0.1); padding:0.5rem 1rem; font-size:0.9rem;">Start
-                        Over</button>
+                    <button onclick="location.reload()" class="btn btn-secondary">Start Over</button>
                 </div>
 
                 <div class="score-circle">
@@ -137,6 +134,27 @@
         <!-- VIEW 3: INTERVIEW -->
         <div id="interview-section" class="hidden">
             <div class="chat-window">
+
+                <div class="avatar-container">
+                    <div class="avatar-ring"></div>
+                    <div class="avatar-sphere" id="ai-avatar"></div>
+                </div>
+
+                <!-- Timer & Status -->
+                <div id="interview-timer" class="timer-badge hidden">00:45</div>
+                <div id="warning-overlay" class="warning-overlay hidden">
+                    <ion-icon name="warning-outline" style="font-size:3rem; margin-bottom:1rem;"></ion-icon>
+                    <h3>Focus Detected Lost!</h3>
+                    <p>Please stay on this tab. Next violation will terminate the interview.</p>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 1rem;">
+                    <label
+                        style="font-size: 0.9rem; color: var(--text-muted); display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="hands-free-toggle"> Hands-Free Mode
+                    </label>
+                </div>
+
                 <div class="chat-messages" id="chat-container">
                     <!-- Messages go here -->
                 </div>
@@ -216,6 +234,20 @@
                         Detailed Breakdown</h3>
                     <div id="report-breakdown">
                         <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Recommended Jobs -->
+                <div style="margin-top:2rem;">
+                    <h3
+                        style="margin-bottom:1rem; border-bottom:var(--border-width) solid #000; padding-bottom:0.5rem;">
+                        Recommended Jobs
+                    </h3>
+                    <p style="color:var(--text-muted); margin-bottom:1rem;">Verified open roles matching your profile.
+                    </p>
+                    <div id="jobs-container" class="grid-2">
+                        <!-- Populated by JS -->
+                        <div class="card" style="opacity:0.6; text-align:center;">Loading jobs...</div>
                     </div>
                 </div>
 

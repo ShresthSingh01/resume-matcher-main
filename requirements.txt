@@ -11,8 +11,11 @@ langchain-community
 langchain-openai
 openai
 python-multipart
+elevenlabs
 python-dotenv
 easyocr
 pymupdf
 opencv-python-headless
 pyttsx3
+pdfplumber
+pydantic

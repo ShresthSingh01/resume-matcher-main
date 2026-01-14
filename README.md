@@ -131,23 +131,20 @@ Starts a new interview session.
 ---
 
 ## 🚀 How to Run
-
 1. **Install Dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Setup API Key**
-   Create a `.env` file:
-   ```env
-   OPENROUTER_API_KEY=sk-or-v1-...
-   # or OPENAI_API_KEY=sk-...
-   ```
-
-3. **Run Server**
+2. **Run the Web Application**
    ```bash
-   uvicorn app.main:app --reload
+   uvicorn app.main:app --host 127.0.0.1 --port 8000
+   ```
+   Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+
+3. **CLI Mode (Optional)**
+   If you prefer the terminal:
+   ```bash
+   python start_interview.py
    ```
 
-4. **Access UI**
-   Open http://127.0.0.1:8000 in your browser.

@@ -7,6 +7,11 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import re
 from sklearn.metrics.pairwise import cosine_similarity
+from app.skills import extract_skills
+from app.job_providers.adzuna import search_jobs
+from app.job_rankers import rank_jobs
+
+
 
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
@@ -520,24 +525,59 @@ async def submit_answer(request: InterviewAnswerRequest):
 @app.post("/interview/result")
 async def get_interview_result(request: InterviewResultRequest):
     try:
+        # 1️⃣ Calculate result ONCE
         result = interview_manager.calculate_final_result(request.session_id)
         if not result:
-            return JSONResponse(status_code=404, content={"message": "Session not found"})
-            
-        result = interview_manager.calculate_final_result(request.session_id)
-        if not result:
-            return JSONResponse(status_code=404, content={"message": "Session not found"})
-        
-        # Update DB if linked
-        session = interview_manager.get_session(request.session_id)
-        if hasattr(session, 'candidate_id') and session.candidate_id:
-            update_candidate_interview(
-                session.candidate_id, 
-                result['interview_score'], 
-                result['final_score'],
-                result['career_report']
+            return JSONResponse(
+                status_code=404,
+                content={"message": "Session not found"}
             )
-            
+
+        # 2️⃣ Fetch session
+        session = interview_manager.get_session(request.session_id)
+
+        # 3️⃣ Update DB if linked
+        if session and hasattr(session, "candidate_id") and session.candidate_id:
+            update_candidate_interview(
+                session.candidate_id,
+                result["interview_score"],
+                result["final_score"],
+                result["career_report"]
+            )
+
+        # 4️⃣ 🔥 JOB RECOMMENDATION LOGIC (ONLY IF REJECTED)
+        REJECTION_THRESHOLD = 90
+
+        if result["final_score"] < REJECTION_THRESHOLD:
+            # Extract skills using AI
+            skills = extract_skills(
+                llm,
+                session.resume_text,
+                session.question_scores
+            )
+
+            # Search jobs
+            jobs = search_jobs(skills)
+
+            # Rank jobs
+            ranked_jobs = rank_jobs(jobs, skills)
+
+            # Attach to response
+            result["job_recommendations"] = ranked_jobs[:5]
+            result["status"] = "Rejected"
+            print("FINAL SCORE:", result["final_score"])
+            print("Extracted Skills:", skills)
+            print("Jobs Found:", len(jobs))
+
+        else:
+            result["job_recommendations"] = []
+            result["status"] = "Selected"
+
         return result
+
     except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        print("ERROR in /interview/result:", e)
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )

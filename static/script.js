@@ -351,6 +351,47 @@ async function showFinalResult(sessionId) {
 
         // Setup Download
         document.getElementById('download-btn').onclick = () => downloadReport(data);
+                // 🔥 JOB RECOMMENDATIONS (ONLY IF REJECTED)
+        if (data.status === "Rejected" && data.job_recommendations && data.job_recommendations.length > 0) {
+
+            const reportSection = document.getElementById('report-section');
+
+            const jobSection = document.createElement('div');
+            jobSection.className = 'card';
+            jobSection.style.marginTop = '2rem';
+
+            jobSection.innerHTML = `
+                <h3 style="margin-bottom:1rem;">
+                    🔄 Alternative Job Opportunities
+                </h3>
+                <p style="color:var(--text-muted); margin-bottom:1.5rem;">
+                    Based on your skills & interview strengths, here are better-fit roles for you.
+                </p>
+            `;
+
+            data.job_recommendations.forEach(job => {
+                const jobCard = document.createElement('div');
+                jobCard.className = 'card';
+                jobCard.style.marginBottom = '1rem';
+                jobCard.style.background = 'rgba(255,255,255,0.03)';
+
+                jobCard.innerHTML = `
+                    <h4>${job.title}</h4>
+                    <p style="opacity:0.8;">
+                        ${job.company || 'Company'} • ${job.location || 'Location'}
+                    </p>
+                    <a href="${job.url}" target="_blank" 
+                       style="color:var(--accent); font-weight:600;">
+                        👉 Apply Now
+                    </a>
+                `;
+
+                jobSection.appendChild(jobCard);
+            });
+
+            reportSection.appendChild(jobSection);
+        }
+
 
     } catch (e) {
         console.error(e);

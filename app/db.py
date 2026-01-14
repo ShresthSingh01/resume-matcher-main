@@ -1,7 +1,8 @@
 import sqlite3
 import uuid
-from typing import List, Optional, Dict
+import os
 import json
+from typing import List, Optional, Dict
 
 DB_FILE = "data/valid_candidates.db"
 
@@ -58,10 +59,11 @@ def add_candidate(name: str, resume_text: str, jd: str, match_score: float) -> s
     conn = get_conn()
     c = conn.cursor()
     cid = str(uuid.uuid4())
-    c.execute('''
-        INSERT INTO candidates (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data)
+    c.execute("""
+        INSERT INTO candidates
+        (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data)
         VALUES (?, ?, ?, ?, ?, 0, 0, 'Matched', '{}')
-    ''', (cid, name, resume_text, jd, match_score))
+    """, (cid, name, resume_text, jd, match_score))
     conn.commit()
     conn.close()
     return cid
@@ -70,9 +72,10 @@ def get_leaderboard() -> List[Dict]:
     conn = get_conn()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute('SELECT * FROM candidates ORDER BY match_score DESC')
+    c.execute("SELECT * FROM candidates ORDER BY match_score DESC")
     rows = c.fetchall()
     conn.close()
+    return [dict(row) for row in rows]
     return [dict(row) for row in rows]
 
 def get_candidate(cid: str) -> Optional[Dict]:
@@ -96,6 +99,7 @@ def update_candidate_interview(cid: str, interview_score: float, final_score: fl
     ''', (interview_score, final_score, json.dumps(feedback), cid))
     conn.commit()
     conn.close()
+    return [dict(r) for r in rows]
 
 # --- New Session Functions ---
 

@@ -149,6 +149,7 @@ async def submit_answer(request: InterviewAnswerRequest):
 @app.post("/interview/result")
 async def get_result(request: InterviewResultRequest):
     try:
+        # 1️⃣ Calculate result ONCE
         result = interview_manager.calculate_final_result(request.session_id)
         if not result:
              raise HTTPException(status_code=404, detail="Session not found.")
@@ -157,6 +158,7 @@ async def get_result(request: InterviewResultRequest):
         # But for now, we return valid result
         
         return result
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 

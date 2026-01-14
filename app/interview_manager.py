@@ -17,6 +17,22 @@ class InterviewManager:
         # State is now in DB
         self.llm = get_llm(temperature=0.7)
 
+    def deduce_role(self, jd_text: str) -> str:
+        """
+        Extracts the role from JD using LLM.
+        """
+        try:
+             from app.interview_prompts import ROLE_DEDUCTION_PROMPT
+             chain = ROLE_DEDUCTION_PROMPT | self.llm
+             res = chain.invoke({"job_description": jd_text})
+             role = res.content.strip()
+             # Basic cleanup if LLM adds quotes
+             role = role.replace('"', '').replace("'", "")
+             return role
+        except Exception as e:
+            print(f"⚠️ Role Deduction Failed: {e}")
+            return "Candidate"
+
     def create_session(self, resume_text: str, jd: str, match_score: float) -> InterviewSession:
         sid = str(uuid.uuid4())
         
@@ -25,13 +41,17 @@ class InterviewManager:
         if len(resume_text) == 36: # Likely a candidate ID passed from frontend
              candidate_id = resume_text
 
+        # Deduce Role
+        role = self.deduce_role(jd)
+
         # Create session object
         session = InterviewSession(
             session_id=sid,
             resume_text=resume_text,
             job_description=jd,
             initial_match_score=match_score,
-            candidate_id=candidate_id
+            candidate_id=candidate_id,
+            detected_role=role
         )
         
         # Save to DB
@@ -91,7 +111,7 @@ class InterviewManager:
         # Initial Question Generation
         try:
             prompt = PromptTemplate(
-                input_variables=["resume_text", "job_description", "match_score", "role", "last_question", "last_answer", "last_score"],
+                input_variables=["resume_text", "job_description", "match_score", "role", "history", "last_score"],
                 template=INTERVIEW_SYSTEM_PROMPT
             )
             chain = prompt | self.llm
@@ -100,8 +120,7 @@ class InterviewManager:
                 "resume_text": session.resume_text,
                 "job_description": session.job_description,
                 "match_score": session.initial_match_score,
-                "last_question": "None (Start of Interview)",
-                "last_answer": "None",
+                "history": "No history yet (Start of interview).",
                 "last_score": "None"
             })
             question = res.content.strip()
@@ -149,8 +168,24 @@ class InterviewManager:
 
         # 3. Generate Next Question
         try:
+            # Build History
+            history_str = ""
+            # session.messages is populated in get_session
+            # We want to show the recent exchange
+            for msg in session.messages:
+                role_label = "Interviewer" if msg.role == "assistant" else "Candidate"
+                history_str += f"{role_label}: {msg.content}\n"
+            
+            # The session.messages list includes the LAST question (assistant) because it was saved 
+            # in the previous turn (start_interview or process_answer).
+            # It DOES NOT include the current 'answer' (user) because we just logged it 
+            # but haven't re-fetched or appended it to the local session object.
+            
+            # So we only need to append the Candidate's answer to the history passed to LLM.
+            history_str += f"Candidate: {answer}\n"
+
             prompt = PromptTemplate(
-                input_variables=["resume_text", "job_description", "match_score", "role", "last_question", "last_answer", "last_score"],
+                input_variables=["resume_text", "job_description", "match_score", "role", "history", "last_score"],
                 template=INTERVIEW_SYSTEM_PROMPT
             )
             chain = prompt | self.llm
@@ -159,14 +194,23 @@ class InterviewManager:
                 "resume_text": session.resume_text,
                 "job_description": session.job_description,
                 "match_score": session.initial_match_score,
-                "last_question": current_q,
-                "last_answer": answer,
+                "history": history_str,
                 "last_score": str(score)
             })
             next_q = res.content.strip()
         except Exception as e:
+             import traceback
              print(f"⚠️ QP Error: {e}")
-             next_q = "Thank you. Let's move to the next topic. What are your key strengths?"
+             traceback.print_exc()
+             # Improved fallback to avoid loops
+             import random
+             fallbacks = [
+                 "That's interesting. Can you tell me about a challenging project you've worked on?",
+                 "How do you handle tight deadlines?",
+                 "Do you have any experience with cloud technologies?",
+                 "What would you say is your biggest technical achievement?"
+             ]
+             next_q = random.choice(fallbacks)
 
         # Log & Update
         log_message_db(session_id, "assistant", next_q)

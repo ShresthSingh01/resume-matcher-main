@@ -134,16 +134,19 @@ function setupUpload() {
     uploadForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const resumeFile = document.getElementById('resume-file').files[0];
+        const resumeFiles = document.getElementById('resume-file').files;
         const jdText = document.getElementById('jd-text').value;
 
-        if (!resumeFile || !jdText) {
-            alert("Please provide a Resume and Job Description.");
+        if (resumeFiles.length === 0 || !jdText) {
+            alert("Please provide at least one Resume and a Job Description.");
             return;
         }
 
         const formData = new FormData();
-        formData.append('resume', resumeFile); // Key must match backend 'resume'
+        // Batch Support: Append all files
+        for (let i = 0; i < resumeFiles.length; i++) {
+            formData.append('resumes', resumeFiles[i]);
+        }
         formData.append('job_description', jdText);
 
         setLoading(true);
@@ -157,10 +160,20 @@ function setupUpload() {
             const data = await res.json();
 
             if (res.ok) {
-                // Show Match Results
-                showMatchResults(data);
-                // Store payload for interview
-                currentPayload = data.interview_context.payload;
+                // If Array > 1, show Leaderboard. If 1, show Result.
+                if (Array.isArray(data) && data.length > 1) {
+                    alert(`Batch Processed: ${data.length} resumes. Redirecting to Leaderboard.`);
+                    fetchLeaderboard();
+                } else if (Array.isArray(data) && data.length === 1) {
+                    showMatchResults(data[0]);
+                    currentPayload = data[0].interview_context.payload;
+                } else if (!Array.isArray(data)) {
+                    // Fallback for legacy single object (shouldn't happen with new API)
+                    showMatchResults(data);
+                    currentPayload = data.interview_context.payload;
+                } else {
+                    alert("No resumes processed successfully.");
+                }
             } else {
                 alert("Error: " + (data.detail || data.error || "Unknown error"));
             }

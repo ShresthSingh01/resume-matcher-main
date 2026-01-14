@@ -26,9 +26,9 @@ app = FastAPI(
 async def startup_event():
     init_db()
     # Optional: Load existing resumes for duplicate check
-    # candidates = get_leaderboard()
-    # texts = [c['resume_text'] for c in candidates if c.get('resume_text')]
-    # load_initial_embeddings(texts)
+    candidates = get_leaderboard()
+    texts = [c['resume_text'] for c in candidates if c.get('resume_text')]
+    load_initial_embeddings(texts)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -38,19 +38,12 @@ async def read_root():
 
 @app.post("/upload")
 async def upload_resume(
-    resume: UploadFile = File(...),
+    resumes: list[UploadFile] = File(...),
     job_description: str = Form(None),
     jd_file: UploadFile = File(None)
 ):
     try:
-        # 1. Parse Resume
-        file_content = await resume.read()
-        resume_text = parse_resume(file_content, resume.filename)
-        
-        if not resume_text:
-            raise HTTPException(status_code=400, detail="Could not extract text from resume.")
-            
-        # 2. Parse JD
+        # 2. Parse JD (Once for all)
         jd_text = ""
         if jd_file:
             jd_content = await jd_file.read()
@@ -61,38 +54,60 @@ async def upload_resume(
         if not jd_text:
             raise HTTPException(status_code=400, detail="Job Description is required.")
 
-        # 3. Duplicate Check
-        is_duplicate = check_duplicate(resume_text)
-        
-        # 4. Match
-        match_data = extract_skills(resume_text, jd_text)
-        match_score = calculate_match_score(match_data['matched_skills'], match_data['missing_skills'])
-        
-        # 5. Save to DB
-        cid = add_candidate(
-            name=resume.filename, 
-            resume_text=resume_text, 
-            jd=jd_text, 
-            match_score=match_score
-        )
-        
-        return {
-            "candidate_id": cid,
-            "match_score": match_score,
-            "matched_skills": match_data['matched_skills'],
-            "missing_skills": match_data['missing_skills'],
-            "reasoning": match_data['reasoning'],
-            "is_duplicate": is_duplicate,
-            "interview_context": {
-                "can_interview": True,
-                "prompt": "Proceed to AI Interview?",
-                "payload": {
-                    "resume_text": resume_text, # Passing strictly for context, usually ID is better
-                    "job_description": jd_text,
-                    "match_score": match_score
-                }
-            }
-        }
+        results = []
+
+        # Loop through all uploaded resumes
+        for resume in resumes:
+            try:
+                # 1. Parse Resume
+                file_content = await resume.read()
+                resume_text = parse_resume(file_content, resume.filename)
+                
+                if not resume_text:
+                    continue # Skip empty
+                    
+                # 3. Duplicate Check
+                is_duplicate = check_duplicate(resume_text)
+                
+                # 4. Match
+                match_data = extract_skills(resume_text, jd_text)
+                match_score = calculate_match_score(
+                    match_data['matched_skills'], 
+                    match_data['missing_skills'],
+                    resume_text=resume_text,
+                    jd_text=jd_text
+                )
+                
+                # 5. Save to DB
+                cid = add_candidate(
+                    name=resume.filename, 
+                    resume_text=resume_text, 
+                    jd=jd_text, 
+                    match_score=match_score
+                )
+
+                results.append({
+                    "candidate_id": cid,
+                    "filename": resume.filename,
+                    "match_score": match_score,
+                    "matched_skills": match_data['matched_skills'],
+                    "missing_skills": match_data['missing_skills'],
+                    "reasoning": match_data['reasoning'],
+                    "is_duplicate": is_duplicate,
+                    "interview_context": {
+                        "can_interview": True,
+                        "prompt": "Proceed to AI Interview?",
+                        "payload": {
+                            "resume_text": resume_text, 
+                            "job_description": jd_text,
+                            "match_score": match_score
+                        }
+                    }
+                })
+            except Exception as e:
+                print(f"Error processing {resume.filename}: {e}")
+
+        return results
         
     except HTTPException as he:
         raise he

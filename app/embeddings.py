@@ -55,3 +55,18 @@ def load_initial_embeddings(texts: list[str]):
     embeddings = model.encode(texts)
     known_embeddings = list(embeddings)
     print("✅ Embeddings loaded.")
+
+def calculate_similarity(text1: str, text2: str) -> float:
+    """
+    Calculate simple cosine similarity between two texts.
+    Returns float 0-100.
+    """
+    if not text1 or not text2:
+        return 0.0
+        
+    emb1 = get_embedding(text1)
+    emb2 = get_embedding(text2)
+    
+    # Reshape for sklearn
+    sim = cosine_similarity([emb1], [emb2])[0][0]
+    return round(float(sim) * 100, 2)

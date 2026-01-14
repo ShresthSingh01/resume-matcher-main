@@ -3,22 +3,29 @@ from langchain_core.prompts import PromptTemplate
 # 1. Strict Extraction Prompt
 MATCHING_INSTRUCTION = """
 You are an expert AI Resume Matcher and Recruiter.
-Your task is to extract skills from the RESUME that match the JOB DESCRIPTION.
+Your task is to analyze the RESUME and JOB DESCRIPTION to identify the overlap of HARD SKILLS.
+
+DEFINITION OF A SKILL:
+- Specific tools, languages, frameworks, platforms, libraries, or methodologies (e.g., Python, React, AWS, Docker, Agile, SQL).
+- Certifications or specific technical competencies.
+- NOT general nouns (e.g., "Experience", "Team", "Project", "System", "Solution").
+- NOT soft skills (e.g., "Communication", "Leadership", "time management") unless explicitly technical (e.g., "Technical Leadership").
 
 RULES:
-1. ONLY compare skills explicitly mentioned in the Resume.
-2. If a skill required in the JD is present in the Resume, add it to 'matched_skills'.
-3. If a skill required in the JD is NOT in the Resume, add it to 'missing_skills'.
-4. Do NOT use synonyms unless explicitly obvious (e.g., "ReactJS" == "React").
-5. Do NOT hallucinate. If it's not there, it's missing.
-6. Provide a short, factual 1-sentence reasoning for the match quality.
-7. Return raw JSON only.
+1. EXTRACT: specific hard skills required in the Job Description.
+2. MATCH: Check if these specific skills are present in the Resume.
+   - Match synonyms if they represent the same technology (e.g., "JS" = "Javascript").
+3. OUTPUT:
+   - matched_skills: Skills from JD that are explicitly found in Resume.
+   - missing_skills: Skills from JD that are NOT found in Resume.
+4. Do NOT match partial words (e.g., "Java" should not match "Javascript" or "JavaBeans").
+5. Return raw JSON.
 
 OUTPUT FORMAT:
 {{
   "matched_skills": ["Skill1", "Skill2"],
   "missing_skills": ["Skill3", "Skill4"],
-  "reasoning": "Candidate has strong backend skills but lacks cloud experience."
+  "reasoning": "Brief explanation of the skill overlap."
 }}
 
 Resume:
@@ -49,10 +56,13 @@ RULES:
 3. Do not lecture the candidate. Ask one specific question at a time.
 4. If they give a short answer, prod them: 'Can you elaborate?' or 'Why did you choose that?'
 5. Be warm and encouraging.
+6. DO NOT REPEAT questions from the history. Check the history carefully.
+7. ALWAYS move the conversation forward. If the last topic is done, switch to a new requirement from the JD.
+
+CHAT HISTORY:
+{history}
 
 CURRENT STATE:
-Last Question: {last_question}
-Last Answer: {last_answer}
 Last Score: {last_score}
 
 OUTPUT:
@@ -86,3 +96,24 @@ GRADING_PROMPT = PromptTemplate(
     input_variables=["question", "answer"],
     template=GRADING_INSTRUCTION
 )
+
+# 4. Role Deduction Prompt
+ROLE_DEDUCTION_INSTRUCTION = """
+You are an expert HR Specialist.
+Your task is to identify the Job Role/Title from the provided Job Description.
+
+Job Description:
+{job_description}
+
+Rules:
+1. Extract the main job title (e.g., "Senior DevOps Engineer", "Product Manager").
+2. If multiple roles are mentioned, choose the primary one.
+3. If no clear role is found, return "Candidate".
+4. Output ONLY the Role Name. No markdown, no json, no extra text.
+"""
+
+ROLE_DEDUCTION_PROMPT = PromptTemplate(
+    input_variables=["job_description"],
+    template=ROLE_DEDUCTION_INSTRUCTION
+)
+

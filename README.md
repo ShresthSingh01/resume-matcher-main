@@ -1,116 +1,108 @@
-# 🧠 AI Resume Matcher & Virtual Interview System
+# 🧠 Virex AI - Intelligent Recruitment Platform
 
-A high-precision AI recruitment platform that automates the screening process. It combines **LLM-based Resume Analysis** with an **Adaptive Virtual Interview** to rank candidates based on a 70/30 weighted performance score.
-
----
-
-## 🌟 Key Features & Evaluation
-
-### 1. Smart Resume Parsing & Matching
-*   **Summary**: uses a hybrid approach (`PyPDF2` + `EasyOCR`) to extract text from both standard and scanned PDFs. It employs `SentenceTransformers` to detect duplicate resumes via vector embeddings (>90% similarity). The core matching logic uses a strict LLM prompt to identify "Present" vs "Missing" skills against the Job Description.
-*   **Evaluation**: **High Precision**. The "No Hallucination" prompt engineering ensures that only explicitly stated skills are counted. The duplicate detection effectively prevents redundant processing.
-
-### 2. Adaptive AI Interviewer
-*   **Summary**: Conducts a real-time, 5-question logic interview. It includes **Role Deduction** (automatically identifying the persona from the JD) and **Chain-of-Thought Questioning**, where each question adapts to the candidate's previous answer using `LangChain`.
-*   **Evaluation**: **Dynamic & Context-Aware**. Unlike static scripts, the system digs deeper into a candidate's specific responses, mimicking a real technical screener.
-
-### 3. Real-Time Job Recommendations (New) 🌍
-*   **Summary**: Integrates with the **Adzuna API** to fetch live, location-specific job listings that match the candidate's identified role.
-*   **Evaluation**: **Actionable Value**. Transforms the tool from a passive analyzer into an active career assistant, connecting candidates with real-world opportunities immediately.
-
-### 4. Hybrid Text-to-Speech (TTS)
-*   **Summary**: Features a dual-layer TTS engine. It attempts to use **ElevenLabs** for ultra-realistic voice streaming and falls back to standard browser-based speech synthesis if API limits are reached.
-*   **Evaluation**: **Robust & Accessible**. Ensures the voice interface is always functional, prioritizing quality when available but guaranteeing usability.
-
-### 5. Candidate Leaderboard & Analytics
-*   **Summary**: A persistent SQLite database tracks every candidate's journey. It stores match scores, interview transcripts, and final weighted rankings (70% Interview / 30% Resume).
-*   **Evaluation**: **Reliable State Management**. clearly visualizes the hiring pipeline, making it easy to compare candidates objectively.
+**Virex AI** is a next-generation recruitment platform designed to automate and enhance the hiring process. It bridges the gap between resume screening and technical interviewing using a powerful combination of LLM-based analysis and an adaptive AI interviewer.
 
 ---
 
-## 🏗️ System Architecture & Workflow
+## 🌟 Key Features
 
-The system operates in a linear, two-stage pipeline:
+### 1. 🛡️ Secure Recruiter Dashboard
+*   **Authentication**: Secure, cookie-based login for recruiters to protect sensitive candidate data.
+*   **Batch Upload**: Drag-and-drop interface to process multiple PDF resumes simultaneously against a specific Job Description (JD).
+*   **Leaderboard**: Real-time ranking of candidates based on a weighted "Final Score" (30% Resume Match + 70% Interview Performance).
+*   **Detailed Analytics**: Interactive modal providing a deep dive into each candidate:
+    *   **Skill Gap Analysis**: Visualizes "Matched" vs "Missing" skills.
+    *   **Interview Transcript**: Full Q&A log with AI-generated feedback and scoring for every answer.
+    *   **Downloadable Reports**: Generate offline text reports for team sharing.
 
-### Stage 1: Resume Matching (30% Weightage)
-1.  **Ingestion & OCR**: Accepts `PDF` or `TXT`. Falls back to OCR for images.
-2.  **Full-Text Analysis**: Feeds the entire resume to the LLM to extract skills contextually.
-3.  **Match Scoring**:
-    $$ Match Score = \frac{\text{Count(Matched Skills)}}{\text{Count(Matched Skills)} + \text{Count(Missing Skills)}} \times 100 $$
+### 2. 🤖 Adaptive AI Interviewer
+*   **Context-Aware**: The AI reads the candidate's resume and the JD before the interview starts to tailor questions specifically to their background and the role.
+*   **Dynamic Questioning**: Unlike static forms, the AI asks follow-up questions based on the candidate's actual responses, mimicking a real technical screener.
+*   **Scoring Engine**: Evaluates every answer on a 0-10 scale for technical accuracy, clarity, and depth.
 
-### Stage 2: AI Virtual Interview (70% Weightage)
-1.  **Role Deduction**: Automatically determines the interview persona (e.g., "Senior DevOps Engineer").
-2.  **Adaptive Questioning**: Q1 verifies resume gaps; Q2-Q5 adapt to the user's answers.
-3.  **Real-Time Grading**: Every answer is scored (0-10) on Technical Accuracy and Clarity.
-4.  **Final Scoring**:
-    $$ Final Score = (Match Score \times 0.3) + (Interview Average \times 10 \times 0.7) $$
+### 3. 📄 Smart Resume Parsing
+*   **Hybrid OCR**: Uses `EasyOCR` and `PyMuPDF` to extract text from both digital and scanned PDFs.
+*   **No-Hallucination Matching**: Strict prompt engineering ensures the AI only credits skills explicitly present in the resume.
+
+### 4. 📊 Candidate Reporting
+*   **Instant Feedback**: Candidates receive a summary of their performance immediately after the interview.
+*   **Status Tracking**: Prevents candidates from re-taking completed interviews to ensure data integrity.
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Component | Library / Tool | Purpose |
+| Component | Technology | Usage |
 | :--- | :--- | :--- |
-| **Backend** | `FastAPI` | Asynchronous Python web server. |
-| **LLM Engine** | `LangChain` | Prompt management and chains. |
-| **Intelligence** | `OpenAI` / `OpenRouter` | Reasoning and grading. |
-| **Job Data** | `Adzuna API` | Real-time job market listings. |
-| **OCR** | `EasyOCR`, `PyMuPDF` | Scanned PDF text extraction. |
-| **Embeddings** | `SentenceTransformers` | Vector similarity for duplicates. |
-| **Database** | `SQLite3` | Local persistence for leaderboard. |
+| **Backend** | `FastAPI` (Python) | High-performance async web server handling API requests and business logic. |
+| **Frontend** | `Vanilla JS` + `HTML5` | Lightweight, responsive UI with no build steps required. |
+| **Styling** | `CSS3` (Neo-Brutalism) | Distinctive, high-contrast design system for a modern aesthetic. |
+| **Database** | `SQLite` | Zero-configuration SQL engine for persisting candidate data and transcripts. |
+| **AI / LLM** | `OpenAI GPT-4o-mini` | Powers the reasoning, resume analysis, and dynamic interviewing. |
+| **Voice (TTS)** | `ElevenLabs` | (Optional) specialized text-to-speech for realistic voice interaction. |
+| **Parsing** | `PyPDF2`, `EasyOCR` | Robust text extraction from diverse document formats. |
 
 ---
 
-## 🚀 Usage Guide
+## 🚀 Workflow & Step-by-Step Guide
 
-### 1. Interactive CLI (Recommended)
-The easiest way to test the full flow without a frontend.
+### 🧑‍💼 Recruiter Workflow
 
-```bash
-python start_interview.py
-```
-*   **Step 1**: Uploads `resume.pdf` & `jd.txt`.
-*   **Step 2**: Match analysis & Score.
-*   **Step 3**: "Do you want to start the interview? (y/n)".
-*   **Step 4**: Conducts a text-based interview.
-*   **Step 5**: Prints final Weighted Score.
+1.  **Login**: Access the dashboard at `/login` (Default credentials: `admin` / `admin123`).
+2.  **Define Role**: Paste the Job Description (JD) into the text area.
+3.  **Upload Resumes**: Select one or more PDF resumes and click **"Batch Analyze"**.
+    *   *System Action*: Parses text, calculates "Match Score", and saves basic profiles to the database.
+4.  **View Leaderboard**: Automatically redirects to the leaderboard showing all candidates ranked by score.
+5.  **Invite Candidate**: Click **"Invite"** to generate a unique interview link for a candidate.
+6.  **Review Performance**: Click **"View"** on a completed candidate to see:
+    *   Final Score.
+    *   Full Interview Transcript.
+    *   Matched/Missing Skills.
+7.  **Export**: Click **"Download Report"** inside the modal to save the full dossier as a `.txt` file.
 
-### 2. Web Interface (API)
+### 🧑‍💻 Candidate Workflow
 
-**Base URL**: `http://127.0.0.1:8000`
-
-#### `POST /upload`
-Matches a resume against a JD.
-*   **Input**: `resume` (File), `jd_file` (File) OR `job_description` (Text).
-*   **Output**: JSON with `match_score`, `missing_skills`, and `interview_context`.
-
-#### `POST /interview/start`
-Starts a new interview session.
-*   **Input**: `resume_text`, `job_description`, `match_score`.
-*   **Output**: `session_id`, `role`, `question`.
-
-#### `GET /jobs/recommend`
-Fetches relevant job openings.
-*   **Input**: `role` (str).
-*   **Output**: List of job objects (title, company, url).
+1.  **Start Interview**: Access the unique interview link provided by the recruiter.
+2.  **System Check**: The AI introduces itself and confirms the candidate's readiness.
+3.  **The Interview**:
+    *   **Stage 1 (Introduction)**: Introduction and background check.
+    *   **Stage 2 (Technical)**: Role-specific technical questions generated from the JD.
+    *   **Stage 3 (Behavioral/Scenario)**: Problem-solving scenarios based on resume experience.
+4.  **Completion**: The system calculates the final score and marks the profile as `Completed`.
+5.  **Feedback**: The candidate sees a thank-you message and a partial summary (if enabled).
 
 ---
 
-## 🚀 How to Run
+## ⚙️ Installation & Setup
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/your-repo/resume-matcher.git
+    cd resume-matcher
+    ```
 
-2. **Run the Web Application**
-   ```bash
-   uvicorn app.main:app --host 127.0.0.1 --port 8000
-   ```
-   Open [http://127.0.0.1:8000](http://127.0.0.1:8000).
+2.  **Install Dependencies**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. **CLI Mode (Optional)**
-   ```bash
-   python start_interview.py
-   ```
+3.  **Configure Environment**
+    Create a `.env` file in the root directory:
+    ```ini
+    OPENAI_API_KEY=sk-your-key-here
+    ADMIN_USER=admin
+    ADMIN_PASS=admin123
+    # Optional
+    ELEVENLABS_API_KEY=your-key-here
+    ```
+
+4.  **Run the Server**
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+
+5.  **Access the App**
+    *   **Dashboard**: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+    *   **API Docs**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
+
 

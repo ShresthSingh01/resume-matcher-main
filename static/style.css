@@ -398,3 +398,114 @@ textarea {
     background: #000;
     border: 2px solid #fff;
 }
+
+/* Modal */
+.modal {
+    display: flex;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    /* Darker overlay for focus */
+    backdrop-filter: blur(8px);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 2.5rem;
+    border: 3px solid #000;
+    box-shadow: 8px 8px 0px #000;
+    /* Harder shadow to distinguish from bg */
+    width: 90%;
+    max-width: 1000px;
+    border-radius: var(--radius);
+    max-height: 90vh;
+    /* Don't exceed screen height */
+    overflow-y: auto;
+    /* Allow scrolling within modal if content is long */
+    position: relative;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    color: var(--primary);
+}
+
+.grid-2-modal {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+@media(max-width: 768px) {
+    .grid-2-modal {
+        grid-template-columns: 1fr;
+    }
+}
+
+.stat-box {
+    border: 2px solid #000;
+    padding: 0.8rem;
+    border-radius: 6px;
+    flex: 1;
+    text-align: center;
+}
+
+.stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: bold;
+    opacity: 0.7;
+}
+
+.stat-value {
+    font-size: 1.4rem;
+    font-weight: 800;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.3rem;
+    margin-bottom: 1rem;
+}
+
+.transcript-item {
+    background: #fff;
+    border: 1px solid #000;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    border-radius: 4px;
+    box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.1);
+}

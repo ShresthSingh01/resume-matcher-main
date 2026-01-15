@@ -1,6 +1,7 @@
 import io
 from PyPDF2 import PdfReader
 import fitz  # PyMuPDF
+import re
 from app.utils import clean_text
 
 # Optional OCR
@@ -19,6 +20,18 @@ def get_ocr_reader():
         ocr_reader = easyocr.Reader(['en'])
         print("✅ OCR Model Loaded")
     return ocr_reader
+
+def extract_email(text: str) -> str:
+    """
+    Extracts the first email found in the text.
+    """
+    # Simple regex for email
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    match = re.search(email_pattern, text)
+    if match:
+        return match.group(0)
+    return ""
+
 
 def parse_resume(file_bytes: bytes, filename: str) -> str:
     """

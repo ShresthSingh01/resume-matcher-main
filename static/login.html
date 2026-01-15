@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recruiter Access | Virex AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            /* Inherits dot pattern from style.css */
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+
+        .login-card {
+            background: #fff;
+            border: var(--border-width) solid var(--border-color);
+            box-shadow: var(--shadow-hard);
+            padding: 2.5rem;
+            border-radius: var(--radius);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Decorative Sash */
+        .sash {
+            position: absolute;
+            top: 20px;
+            right: -30px;
+            background: var(--accent);
+            color: var(--text-main);
+            transform: rotate(45deg);
+            padding: 5px 40px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border: 2px solid black;
+            box-shadow: 2px 2px 0px black;
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            text-shadow: 3px 3px 0px var(--primary);
+        }
+
+        .subtitle {
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .input-group label {
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+            text-transform: uppercase;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            border: 2px solid black;
+            border-radius: 6px;
+            background: #f8f9fa;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            background: #fff;
+            box-shadow: 4px 4px 0px 0px black;
+            transform: translate(-2px, -2px);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: var(--primary);
+            color: white;
+            border: 2px solid black;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 1.1rem;
+            box-shadow: 4px 4px 0px 0px black;
+            cursor: pointer;
+            transition: all 0.1s;
+            margin-top: 1rem;
+        }
+
+        .btn-login:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px black;
+            background: var(--primary-hover);
+        }
+
+        .btn-login:active {
+            transform: translate(0px, 0px);
+            box-shadow: 2px 2px 0px 0px black;
+        }
+
+        .error-msg {
+            background: var(--error);
+            color: white;
+            padding: 0.75rem;
+            border: 2px solid black;
+            box-shadow: 4px 4px 0px black;
+            margin-top: 1.5rem;
+            font-weight: bold;
+            display: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="login-container">
+
+        <div class="login-card">
+            <div class="sash">ADMIN</div>
+
+            <div class="logo">Virex AI</div>
+            <div class="subtitle">Recruitment Command Center</div>
+
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="admin" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-login">
+                    Access System
+                </button>
+
+                <div id="error-msg" class="error-msg">
+                    <ion-icon name="alert-circle-outline"></ion-icon> Invalid Credentials
+                </div>
+            </form>
+        </div>
+
+        <div style="margin-top: 2rem; opacity: 0.5; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
+            SECURE ACCESS CHECKPOINT v2.1
+        </div>
+
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-msg');
+            const btn = document.querySelector('.btn-login');
+
+            // Visual Processing State
+            btn.innerHTML = 'Verifying...';
+            btn.style.opacity = '0.8';
+
+            try {
+                const formData = new FormData();
+                formData.append("username", username);
+                formData.append("password", password);
+
+                const res = await fetch('/login', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    btn.innerHTML = 'Authorized <ion-icon name="checkmark-circle"></ion-icon>';
+                    btn.style.background = 'var(--success)';
+                    setTimeout(() => window.location.href = '/', 500);
+                } else {
+                    btn.innerHTML = 'Access System';
+                    btn.style.opacity = '1';
+                    btn.style.background = 'var(--primary)';
+                    errorMsg.style.display = 'block';
+                    // Shake animation
+                    document.querySelector('.login-card').animate([
+                        { transform: 'translateX(0)' },
+                        { transform: 'translateX(-10px)' },
+                        { transform: 'translateX(10px)' },
+                        { transform: 'translateX(0)' }
+                    ], { duration: 300 });
+                }
+            } catch (err) {
+                console.error(err);
+                btn.innerHTML = 'Access System';
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = "Connection Error";
+            }
+        });
+    </script>
+</body>
+
+</html>

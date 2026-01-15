@@ -1,0 +1,373 @@
+
+// recruiter.js - Logic for Recruiter Dashboard (Upload & Leaderboard)
+
+let allCandidates = []; // Store candidates globally
+
+document.addEventListener('DOMContentLoaded', () => {
+    setupUpload();
+    // fetchLeaderboard(); // Optional auto-load
+});
+
+// ---------- Leaderboard Logic ----------
+
+async function fetchLeaderboard() {
+    try {
+        const res = await fetch('/leaderboard');
+        if (res.status === 401) {
+            window.location.href = '/login';
+            return;
+        }
+        const candidates = await res.json();
+        allCandidates = candidates; // Save to global scope
+
+        // Switch Views
+        document.getElementById('upload-section').classList.add('hidden');
+        document.getElementById('leaderboard-section').classList.remove('hidden');
+
+        renderLeaderboard(candidates);
+    } catch (e) {
+        console.error("Leaderboard Error:", e);
+        alert("Failed to load leaderboard: " + e.message);
+    }
+}
+
+async function clearLeaderboard() {
+    if (!confirm("Are you sure you want to clear all candidates? This cannot be undone.")) return;
+
+    try {
+        const res = await fetch('/candidates', { method: 'DELETE' });
+        if (res.ok) {
+            alert("Leaderboard cleared.");
+            fetchLeaderboard(); // Refresh empty list
+        } else {
+            alert("Failed to clear leaderboard.");
+        }
+    } catch (e) {
+        alert("Error clearing leaderboard: " + e);
+    }
+}
+
+function renderLeaderboard(candidates) {
+    const tbody = document.getElementById('leaderboard-body');
+    tbody.innerHTML = '';
+
+    if (!candidates || candidates.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:2rem; opacity:0.5;">No candidates found. Upload a resume to start.</td></tr>';
+        return;
+    }
+
+    candidates.forEach((c, index) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+
+        let statusColor = 'var(--text-muted)';
+        let statusText = 'Pending';
+
+        if (c.status === 'completed') {
+            statusColor = 'var(--success)';
+            statusText = 'Completed';
+        } else if (c.status === 'Interviewed') { // Legacy
+            statusColor = 'var(--success)';
+            statusText = 'Completed';
+        }
+
+        const actionBtn = `
+            <button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem; margin-right:0.5rem;">
+                View
+            </button>
+            ${statusText !== 'Completed' ?
+                `<button class="btn btn-primary" onclick="initiateInterviewFromId('${c.id}')" style="padding:0.5rem 1rem; font-size:0.8rem;">
+                Invite
+            </button>` : ''}
+        `;
+
+        tr.innerHTML = `
+            <td style="padding:1rem;">#${index + 1}</td>
+            <td style="padding:1rem; font-weight:bold;">${c.name || 'Candidate'}</td>
+            <td style="padding:1rem;">
+                <div class="tag" style="background:rgba(255,255,255,0.1);">${c.match_score.toFixed(1)}%</div>
+            </td>
+            <td style="padding:1rem;">${c.interview_score > 0 ? c.interview_score + '/100' : '-'}</td>
+            <td style="padding:1rem; color:${statusColor}">${statusText}</td>
+            <td style="padding:1rem;">${actionBtn}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+async function initiateInterviewFromId(candidateId) {
+    if (!confirm("Send interview invitation email to this candidate?")) return;
+
+    try {
+        const res = await fetch(`/invite/candidate/${candidateId}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message);
+        } else {
+            alert("Error sending invite: " + (data.detail || "Unknown error"));
+        }
+    } catch (e) {
+        alert("Failed to send invite: " + e);
+    }
+}
+
+// ---------- Upload Logic ----------
+
+function setupUpload() {
+    const uploadForm = document.getElementById('upload-form');
+    if (!uploadForm) return;
+
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const resumeFiles = document.getElementById('resume-file').files;
+        const jdText = document.getElementById('jd-text').value;
+
+        if (resumeFiles.length === 0 || !jdText) {
+            alert("Please provide at least one Resume and a Job Description.");
+            return;
+        }
+
+        const formData = new FormData();
+        // Batch Support: Append all files
+        for (let i = 0; i < resumeFiles.length; i++) {
+            formData.append('resumes', resumeFiles[i]);
+        }
+        formData.append('job_description', jdText);
+
+        setLoading(true);
+
+        try {
+            const res = await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert(`Batch Processed: ${Array.isArray(data) ? data.length : 1} resumes. Redirecting to Leaderboard.`);
+                fetchLeaderboard();
+            } else {
+                alert("Error: " + (data.detail || data.error || "Unknown error"));
+            }
+        } catch (err) {
+            alert("Connection Failed: " + err);
+        } finally {
+            setLoading(false);
+        }
+    });
+}
+
+function setLoading(isLoading) {
+    const btn = document.querySelector('#upload-form button');
+    const loadingText = document.getElementById('loading-text');
+
+    if (btn) {
+        btn.innerHTML = isLoading ?
+            'Analyzing... <ion-icon name="sync-outline" class="pulse"></ion-icon>' :
+            'Batch Analyze <ion-icon name="arrow-forward-outline"></ion-icon>';
+        btn.disabled = isLoading;
+    }
+    if (loadingText) {
+        loadingText.style.opacity = isLoading ? '1' : '0';
+    }
+}
+
+// ---------- Modal Logic ----------
+
+function showCandidateDetails(index) {
+    const c = allCandidates[index];
+    if (!c) return;
+
+    const modal = document.getElementById('candidate-modal');
+    if (!modal) return;
+
+    // 1. Text Fields
+    document.getElementById('m-name').textContent = c.name || c.filename;
+    document.getElementById('m-email').innerHTML = `<ion-icon name="mail-outline"></ion-icon> ${c.email || 'N/A'}`;
+    document.getElementById('m-phone').innerHTML = `<ion-icon name="call-outline"></ion-icon> ${c.phone || 'N/A'}`;
+
+    document.getElementById('m-match-score').textContent = (c.match_score !== undefined && c.match_score !== null) ? Number(c.match_score).toFixed(1) + '%' : '0%';
+    document.getElementById('m-interview-score').textContent = c.interview_score ? c.interview_score + '/100' : '-';
+    document.getElementById('m-final-score').textContent = c.final_score ? c.final_score.toFixed(1) + '%' : '-';
+
+    // 2. Badges
+    const badgeContainer = document.getElementById('m-badges');
+    badgeContainer.innerHTML = '';
+    if (c.final_score > 75) {
+        badgeContainer.innerHTML += `<span class="tag" style="background:var(--success); color:white;">Top Pick</span>`;
+    }
+    if (c.status === 'completed' || c.status === 'Interviewed') {
+        badgeContainer.innerHTML += `<span class="tag" style="background:var(--primary); color:white;">Interviewed</span>`;
+    }
+
+    // 3. Skills
+    const matchedContainer = document.getElementById('m-matched-skills');
+    matchedContainer.innerHTML = '';
+
+    let matched = [];
+    try {
+        if (typeof c.matched_skills === 'string') {
+            matched = JSON.parse(c.matched_skills);
+        } else if (Array.isArray(c.matched_skills)) {
+            matched = c.matched_skills;
+        }
+    } catch (e) { console.error("Error parsing matched skills", e); }
+
+    if (matched && matched.length) {
+        matched.forEach(s => matchedContainer.innerHTML += `<span class="tag" style="background:var(--success); color:white; border:1px solid black; box-shadow:2px 2px 0px black;">${s}</span>`);
+    } else {
+        matchedContainer.innerHTML = '<span style="opacity:0.5; font-size:0.8rem;">None detected</span>';
+    }
+
+    const missingContainer = document.getElementById('m-missing-skills');
+    missingContainer.innerHTML = '';
+
+    let missing = [];
+    try {
+        if (typeof c.missing_skills === 'string') {
+            missing = JSON.parse(c.missing_skills);
+        } else if (Array.isArray(c.missing_skills)) {
+            missing = c.missing_skills;
+        }
+    } catch (e) { console.error("Error parsing missing skills", e); }
+
+    if (missing && missing.length) {
+        missing.forEach(s => missingContainer.innerHTML += `<span class="tag" style="background:var(--error); color:white; border:1px solid black; box-shadow:2px 2px 0px black;">${s}</span>`);
+    } else {
+        missingContainer.innerHTML = '<span style="opacity:0.5; font-size:0.8rem;">None missing</span>';
+    }
+
+    // 4. Transcript
+    const transcriptContainer = document.getElementById('m-transcript');
+    transcriptContainer.innerHTML = '';
+
+    let feedback = null;
+    try {
+        if (c.feedback_data) {
+            feedback = typeof c.feedback_data === 'string' ? JSON.parse(c.feedback_data) : c.feedback_data;
+        }
+    } catch (e) { console.error("Error parsing feedback", e); }
+
+    let transcriptList = [];
+    if (feedback) {
+        if (Array.isArray(feedback)) {
+            transcriptList = feedback;
+        } else if (feedback.transcript && Array.isArray(feedback.transcript)) {
+            transcriptList = feedback.transcript;
+        }
+    }
+
+    if (transcriptList.length > 0) {
+        transcriptList.forEach((t, i) => {
+            const div = document.createElement('div');
+            div.className = 'transcript-item';
+            div.innerHTML = `
+                <div style="font-size:0.8rem; font-weight:bold; color:var(--text-muted); margin-bottom:0.3rem;">Question ${i + 1}</div>
+                <div style="font-style:italic; margin-bottom:0.5rem;">"${t.q}"</div>
+                <div style="padding-left:0.5rem; border-left:2px solid var(--primary); margin-bottom:0.5rem;">
+                    ${t.a}
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
+                    <span style="color:var(--success); font-weight:bold;">Score: ${t.score}/10</span>
+                    <span style="opacity:0.7;">${t.feedback || ''}</span>
+                </div>
+             `;
+            transcriptContainer.appendChild(div);
+        });
+    } else {
+        transcriptContainer.innerHTML = `<div style="text-align:center; opacity:0.6; margin-top:2rem;">
+            ${c.status === 'completed' ? 'Report structure unavailable or empty.' : 'Candidate has not completed the interview.'}
+         </div>`;
+    }
+
+    // Show
+    modal.classList.remove('hidden');
+
+    // 5. Download Button
+    const dlBtn = document.getElementById('m-download-btn');
+    if (dlBtn) {
+        if (transcriptList.length > 0) {
+            dlBtn.classList.remove('hidden');
+            dlBtn.onclick = () => downloadRecruiterReport(c);
+        } else {
+            dlBtn.classList.add('hidden');
+        }
+    }
+}
+
+function downloadRecruiterReport(c) {
+    let content = `VIREX AI - CANDIDATE REPORT\n`;
+    content += `================================\n`;
+    content += `Candidate: ${c.name || c.filename}\n`;
+    content += `Email: ${c.email || 'N/A'}\n`;
+    content += `Date: ${new Date().toLocaleString()}\n\n`;
+
+    content += `SCORES\n`;
+    content += `------\n`;
+    content += `Resume Match: ${c.match_score ? c.match_score.toFixed(1) : 0}%\n`;
+    content += `Interview Score: ${c.interview_score || 0}/100\n`;
+    content += `Final Score: ${c.final_score ? c.final_score.toFixed(1) : 0}%\n\n`;
+
+    content += `SKILLS ANALYSIS\n`;
+    content += `---------------\n`;
+
+    let matched = [];
+    try { matched = typeof c.matched_skills === 'string' ? JSON.parse(c.matched_skills) : (c.matched_skills || []); } catch (e) { }
+    content += `Matched: ${matched.join(', ') || 'None'}\n\n`;
+
+    let missing = [];
+    try { missing = typeof c.missing_skills === 'string' ? JSON.parse(c.missing_skills) : (c.missing_skills || []); } catch (e) { }
+    content += `Missing: ${missing.join(', ') || 'None'}\n\n`;
+
+    content += `INTERVIEW TRANSCRIPT\n`;
+    content += `====================\n\n`;
+
+    let feedback = null;
+    try {
+        if (c.feedback_data) {
+            feedback = typeof c.feedback_data === 'string' ? JSON.parse(c.feedback_data) : c.feedback_data;
+        }
+    } catch (e) { }
+
+    let transcriptList = [];
+    if (feedback) {
+        if (Array.isArray(feedback)) {
+            transcriptList = feedback;
+        } else if (feedback.transcript && Array.isArray(feedback.transcript)) {
+            transcriptList = feedback.transcript;
+        }
+    }
+
+    if (transcriptList.length > 0) {
+        transcriptList.forEach((t, i) => {
+            content += `Q${i + 1}: ${t.q}\n`;
+            content += `Answer: ${t.a}\n`;
+            content += `Score: ${t.score}/10\n`;
+            content += `Feedback: ${t.feedback || '-'}\n`;
+            content += `------------------------------------------------\n\n`;
+        });
+    } else {
+        content += `(Transcript unavailable or incomplete)\n`;
+    }
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Report_${(c.name || 'Candidate').replace(/\s+/g, '_')}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function closeModal() {
+    document.getElementById('candidate-modal').classList.add('hidden');
+}

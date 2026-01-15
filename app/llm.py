@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-def get_llm(temperature: float = 0):
+def get_llm(temperature: float = 0, max_tokens: int = 1000):
     """
     Get the configured LLM instance.
     """
@@ -21,5 +21,6 @@ def get_llm(temperature: float = 0):
         model=model_name,
         temperature=temperature,
         api_key=SecretStr(api_key),
-        base_url=base_url
+        base_url=base_url,
+        max_tokens=max_tokens
     )

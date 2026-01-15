@@ -38,6 +38,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
     }
+    // Check for candidate_id in URL (e.g. from Email Invite)
+    const urlParams = new URLSearchParams(window.location.search);
+    const candidateId = urlParams.get('candidate_id');
+    if (candidateId) {
+        console.log("Found candidate_id from URL:", candidateId);
+        // Clean URL
+        window.history.replaceState({}, document.title, "/");
+        // Start Interview
+        startInterview({ candidate_id: candidateId });
+    }
 });
 
 // ---------- Leaderboard Logic ----------
@@ -98,7 +108,7 @@ function renderLeaderboard(candidates) {
 
         const actionBtn = c.status !== 'Interviewed' ?
             `<button class="btn btn-primary" onclick="initiateInterviewFromId('${c.id}')" style="padding:0.5rem 1rem; font-size:0.8rem;">
-                        Interview
+                        Send Invite
                 </button>` :
             `<button class="btn btn-secondary" disabled style="padding:0.5rem 1rem; font-size:0.8rem; opacity:0.5;">Done</button>`;
 
@@ -116,13 +126,20 @@ function renderLeaderboard(candidates) {
     });
 }
 
-// Helper to start interview from Leaderboard (requires fetching context first)
-// For now, we'll just mock or alert since we need Resume Text to start context.
-// Ideally, backend session creation should support candidate_id lookup.
 async function initiateInterviewFromId(candidateId) {
-    // In a real app, we call backend to get resume_text by ID.
-    // For now, we alert limitation.
-    alert("Please restart the session via Upload to ensure fresh context.");
+    if (!confirm("Send interview invitation email to this candidate?")) return;
+
+    try {
+        const res = await fetch(`/invite/candidate/${candidateId}`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            alert(data.message);
+        } else {
+            alert("Error sending invite: " + (data.detail || "Unknown error"));
+        }
+    } catch (e) {
+        alert("Failed to send invite: " + e);
+    }
 }
 
 // ---------- Upload Logic ----------

@@ -1,14 +1,16 @@
 import json
 import re
 from app.llm import get_llm
-from app.interview_prompts import MATCHING_PROMPT
+from app.interview_prompts import MATCHING_PROMPT, PROFILE_EXTRACTION_PROMPT
+from app.schemas import CandidateProfile
+import asyncio
 
 def extract_skills(resume_text: str, jd_text: str) -> dict:
     """
     Extract skills and reasoning using LLM.
     Returns dict with matched_skills, missing_skills, reasoning.
     """
-    llm = get_llm(temperature=0)
+    llm = get_llm(temperature=0, max_tokens=1000)
     if not llm:
         raise ValueError("LLM not configured")
         
@@ -169,8 +171,92 @@ def calculate_match_score(matched: list, missing: list, resume_text: str = "", j
         
     # Weighted Average
     # If no semantic info is passed (legacy calls), fallback to skill only
+    # If no semantic info is passed (legacy calls), fallback to skill only
     if not resume_text or not jd_text:
         return round(skill_score, 2)
         
     final_score = (skill_score * 0.6) + (semantic_score * 0.4)
     return round(final_score, 2)
+
+async def extract_skills_async(resume_text: str, jd_text: str) -> dict:
+    """
+    Async version of extract_skills.
+    """
+    llm = get_llm(temperature=0, max_tokens=1000)
+    if not llm:
+        raise ValueError("LLM not configured")
+        
+    chain = MATCHING_PROMPT | llm
+    
+    try:
+        response = await chain.ainvoke({
+            "context": resume_text,
+            "job_description": jd_text
+        })
+        content = response.content.strip()
+    except Exception as e:
+        print(f"⚠️ Async LLM Error: {e}. Switching to Regex Fallback.")
+        # Re-use sync fallback logic effectively or just call sync function wrapped
+        # For simplicity, we just use the sync regex logic here or generic error
+        return extract_skills(resume_text, jd_text) # Fallback to sync/regex if LLM fails
+
+    # Reuse duplicate logic for cleaning
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0].strip()
+    elif "```" in content:
+        content = content.split("```")[1].split("```")[0].strip()
+        
+    try:
+        data = json.loads(content)
+        # We can implement the same post-processing logic here or helper function
+        # For strictness, let's just return raw first or duplicate the logic
+        # A smart refactor would be to extract the post-processing to a pure function
+        # But to be safe, let's copy the post-processing
+        
+        real_matched = []
+        real_missing = data.get("missing_skills", [])
+        r_text_lower = resume_text.lower()
+        
+        for skill in data.get("matched_skills", []):
+            s_clean = re.escape(skill.lower())
+            if re.search(r'[^a-zA-Z0-9]', skill):
+                if skill.lower() in r_text_lower:
+                     real_matched.append(skill)
+                else:
+                     real_missing.append(skill)
+            else:
+                if re.search(rf'\\b{s_clean}\\b', r_text_lower):
+                    real_matched.append(skill)
+                else:
+                    real_missing.append(skill)
+
+        return {
+            "matched_skills": real_matched,
+            "missing_skills": list(set(real_missing)),
+            "reasoning": data.get("reasoning", "Async Analysis completed.")
+        }
+    except Exception as e:
+        print(f"❌ Async JSON Error: {e}")
+        return {
+            "matched_skills": [],
+            "missing_skills": [],
+            "reasoning": "Error parsing Async AI response."
+        }
+
+async def extract_profile_async(resume_text: str) -> CandidateProfile:
+    """
+    Extracts structured profile (Education, Exp) using LLM.
+    """
+    llm = get_llm(temperature=0, max_tokens=2000)
+    if not llm:
+        # Return empty profile
+        return CandidateProfile(name="Unknown", email="", phone="", skills=[])
+
+    chain = PROFILE_EXTRACTION_PROMPT | llm.with_structured_output(CandidateProfile)
+
+    try:
+        profile = await chain.ainvoke({"resume_text": resume_text})
+        return profile
+    except Exception as e:
+        print(f"❌ Profile Extraction Error: {e}")
+        return CandidateProfile(name="Extraction Failed", email="", phone="", skills=[])

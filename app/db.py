@@ -21,6 +21,10 @@ def init_db():
                 final_score REAL,
                 status TEXT,
                 feedback_data TEXT,
+                status TEXT,
+                feedback_data TEXT,
+                matched_skills TEXT,
+                missing_skills TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
@@ -45,6 +49,15 @@ def init_db():
                 FOREIGN KEY(session_id) REFERENCES interview_sessions(session_id)
             )
         ''')
+        # Schema Migration: Ensure new columns exist for existing DBs
+        try:
+            c.execute("ALTER TABLE candidates ADD COLUMN matched_skills TEXT")
+        except: pass
+        
+        try:
+            c.execute("ALTER TABLE candidates ADD COLUMN missing_skills TEXT")
+        except: pass
+
         conn.commit()
         conn.close()
         print(f"✅ Database initialized at {DB_FILE}")
@@ -55,15 +68,15 @@ def init_db():
 def get_conn():
     return sqlite3.connect(DB_FILE)
 
-def add_candidate(name: str, resume_text: str, jd: str, match_score: float) -> str:
+def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matched_skills: list, missing_skills: list) -> str:
     conn = get_conn()
     c = conn.cursor()
     cid = str(uuid.uuid4())
     c.execute("""
         INSERT INTO candidates
-        (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data)
-        VALUES (?, ?, ?, ?, ?, 0, 0, 'Matched', '{}')
-    """, (cid, name, resume_text, jd, match_score))
+        (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data, matched_skills, missing_skills)
+        VALUES (?, ?, ?, ?, ?, 0, 0, 'Matched', '{}', ?, ?)
+    """, (cid, name, resume_text, jd, match_score, json.dumps(matched_skills), json.dumps(missing_skills)))
     conn.commit()
     conn.close()
     return cid
@@ -72,7 +85,7 @@ def get_leaderboard() -> List[Dict]:
     conn = get_conn()
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
-    c.execute("SELECT * FROM candidates ORDER BY match_score DESC")
+    c.execute("SELECT * FROM candidates ORDER BY final_score DESC, match_score DESC")
     rows = c.fetchall()
     conn.close()
     return [dict(row) for row in rows]
@@ -94,12 +107,12 @@ def update_candidate_interview(cid: str, interview_score: float, final_score: fl
     c = conn.cursor()
     c.execute('''
         UPDATE candidates 
-        SET interview_score = ?, final_score = ?, status = 'Interviewed', feedback_data = ?
+        SET interview_score = ?, final_score = ?, status = 'completed', feedback_data = ?
         WHERE id = ?
     ''', (interview_score, final_score, json.dumps(feedback), cid))
     conn.commit()
     conn.close()
-    return [dict(r) for r in rows]
+    return True
 
 # --- New Session Functions ---
 

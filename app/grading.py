@@ -7,7 +7,7 @@ def grade_answer(question: str, answer: str) -> dict:
     Grade the answer using LLM.
     Returns dict with score, feedback, strength, gap.
     """
-    llm = get_llm(temperature=0)
+    llm = get_llm(temperature=0, max_tokens=500)
     if not llm:
         return {"score": 0, "feedback": "LLM Error", "strength": "", "gap": ""}
         
@@ -21,7 +21,7 @@ def grade_answer(question: str, answer: str) -> dict:
     except Exception as e:
         print(f"⚠️ Grading Error: {e}")
         # Return dummy response object
-        response = type('obj', (object,), {'content': '{"score": 5.0, "feedback": "Service unavailable, neutral score assigned."}'})
+        response = type('obj', (object,), {'content': '{"score": 0.0, "feedback": "Service unavailable, unable to grade."}'})
     
     content = response.content.strip()
     

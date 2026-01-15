@@ -15,7 +15,7 @@ import json
 class InterviewManager:
     def __init__(self):
         # State is now in DB
-        self.llm = get_llm(temperature=0.7)
+        self.llm = get_llm(temperature=0.7, max_tokens=600)
 
     def deduce_role(self, jd_text: str) -> str:
         """
@@ -33,29 +33,56 @@ class InterviewManager:
             print(f"⚠️ Role Deduction Failed: {e}")
             return "Candidate"
 
-    def create_session(self, resume_text: str, jd: str, match_score: float) -> InterviewSession:
+    def create_session(
+        self, 
+        resume_text: Optional[str] = None, 
+        jd: Optional[str] = None, 
+        match_score: Optional[float] = None,
+        candidate_id: Optional[str] = None
+    ) -> InterviewSession:
         sid = str(uuid.uuid4())
         
-        # Try to find existing candidate context
-        candidate_id = "unknown"
-        if len(resume_text) == 36: # Likely a candidate ID passed from frontend
-             candidate_id = resume_text
+        # 1. Resolve from DB if ID provided
+        if candidate_id:
+            db_candidate = get_candidate(candidate_id)
+            if db_candidate:
+                resume_text = db_candidate['resume_text']
+                jd = db_candidate['job_description']
+                match_score = db_candidate['match_score']
+            else:
+                # Fallback or error? For now proceed if texts are passed
+                if not resume_text:
+                    raise ValueError("Candidate not found and no resume text provided.")
+
+        # Legacy fallback if resume_text looks like UUID (Backwards compat logic removal/cleanup?)
+        # Keeping it safe: if candidate_id was NOT passed but resume_text IS 36 chars, treat as ID
+        if not candidate_id and resume_text and len(resume_text) == 36:
+            candidate_id = resume_text
+            db_candidate = get_candidate(candidate_id)
+            if db_candidate:
+                 resume_text = db_candidate['resume_text']
+                 jd = db_candidate['job_description']
+                 match_score = db_candidate['match_score']
+
+        if not resume_text or not jd:
+             # Just ensures we don't crash, but deduction might fail
+             pass
 
         # Deduce Role
-        role = self.deduce_role(jd)
+        role = self.deduce_role(jd if jd else "")
 
         # Create session object
         session = InterviewSession(
             session_id=sid,
-            resume_text=resume_text,
-            job_description=jd,
-            initial_match_score=match_score,
-            candidate_id=candidate_id,
+            resume_text=resume_text or "",
+            job_description=jd or "",
+            initial_match_score=match_score or 0.0,
+            candidate_id=candidate_id or "unknown",
             detected_role=role
         )
         
         # Save to DB
-        save_session_db(sid, candidate_id, session.detected_role, True)
+        save_session_db(sid, session.candidate_id, session.detected_role, True)
         
         return session
 
@@ -235,7 +262,10 @@ class InterviewManager:
                  session.candidate_id, 
                  round(avg_interview_score * 10, 2),
                  round(final_score, 2),
-                 {"transcript_len": len(scores)}
+                 {"transcript": [
+                    {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
+                    for q in session.question_scores
+                 ]}
              )
         
         return {

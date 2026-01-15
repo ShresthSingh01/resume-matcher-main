@@ -1,5 +1,28 @@
 from langchain_core.prompts import PromptTemplate
 
+# 0. Profile Extraction Prompt
+PROFILE_EXTRACTION_INSTRUCTION = """
+You are an expert Resume Parser. 
+Extract the following details from the resume text into a structured JSON format.
+
+Resume Text:
+{resume_text}
+
+OUTPUT RULES:
+1. Extract Name, Email, Phone.
+2. Extract Skills (Hard skills only).
+3. Extract Education (Institution, Degree, Year).
+4. Extract Experience (Company, Role, Duration, Description).
+5. Extract Certifications.
+6. If a field is missing, return empty string or list.
+7. Return raw JSON compatible with the CandidateProfile schema.
+"""
+
+PROFILE_EXTRACTION_PROMPT = PromptTemplate(
+    input_variables=["resume_text"],
+    template=PROFILE_EXTRACTION_INSTRUCTION
+)
+
 # 1. Strict Extraction Prompt
 MATCHING_INSTRUCTION = """
 You are an expert AI Resume Matcher and Recruiter.
@@ -51,13 +74,13 @@ Job Description: {job_description}
 Resume Text: {resume_text}
 
 RULES:
-1. KEEP IT SHORT. Maximum 2 sentences. Speak like a human, not a text book.
-2. Use fillers like 'Got it', 'Right', 'Cool', 'Makes sense' before asking the next question.
-3. Do not lecture the candidate. Ask one specific question at a time.
-4. If they give a short answer, prod them: 'Can you elaborate?' or 'Why did you choose that?'
-5. Be warm and encouraging.
-6. DO NOT REPEAT questions from the history. Check the history carefully.
-7. ALWAYS move the conversation forward. If the last topic is done, switch to a new requirement from the JD.
+1. QUESTION SOURCE: Prioritize asking questions based on the SKILLS and EXPERIENCE explicitly mentioned in the Resume Text. Your goal is to validate what they claim they know.
+2. KEEP IT SHORT: Maximum 2 sentences. Speak like a human, not a textbook.
+3. CONVERSATIONAL: Use fillers like 'Got it', 'Right', 'Cool' before the next question.
+4. DEPTH: If they give a short answer, prod them: 'Can you elaborate?' or 'Why did you choose that?'
+5. TONE: Be warm and encouraging, but technically sharp.
+6. NO REPEATS: Do not repeat questions from the history.
+7. PROGRESSION: ALWAYS move the conversation forward. Start with their strongest skills from the resume, then move to gaps relative to the JD.
 
 CHAT HISTORY:
 {history}
@@ -71,10 +94,16 @@ Generate ONLY the conversational response/next question. Do not output JSON.
 
 # 3. Grading Prompt
 GRADING_INSTRUCTION = """
-You are a Senior Technical Lead grading an interview answer.
+You are a Senior Technical Lead grading an interview answer. Be strict and objective.
 
 Question: {question}
 Candidate Answer: {answer}
+
+GRADING RUBRIC:
+- Score 0-2: Answer is "No", "I don't know", irrelevant, or factually incorrect.
+- Score 3-5: vauge, generic, or lacks technical depth (basic definitions only).
+- Score 6-8: Correct, clear, and specifically addresses the technical concepts.
+- Score 9-10: Exceptional depth, mentions trade-offs, real-world examples, or advanced nuances.
 
 Task:
 Evaluate the answer for:
@@ -86,9 +115,9 @@ Output JSON only:
 {{
   "score": <0-10 float>,
   "feedback": "One sentence feedback on what was good or bad.",
-  "strength": "What they know",
-  "gap": "What they missed",
-  "improvement": "How to improve"
+  "strength": "What specific technical concept they understood",
+  "gap": "What they missed or got wrong",
+  "improvement": "Specific advice to improve this answer"
 }}
 """
 

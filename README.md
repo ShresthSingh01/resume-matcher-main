@@ -4,39 +4,61 @@
 
 ## 🌟 Key Features
 
+## 🌟 Key Features & Scoring Logic
+
 ### 1. 🔍 Structured "Virex" Resume Evaluation
-*   **Zero-Hallucination Parsing**: Uses direct LLM evidence extraction to find skills, education, and experience, strictly verified against the text.
-*   **Role-Specific Templates**: Scoring is not generic. Recruiters can select templates (or let the AI Auto-Detect):
-    *   **🎓 Intern/Fresher**: High weight on Education (25%) and Projects (25%).
-    *   **👨‍💻 Junior/Mid**: Balanced profile (Skills 30%, Experience 25%).
-    *   **🚀 Senior/Lead**: high weight on Experience (40%) and Leadership.
-*   **Likert Scale Scoring**: Every resume is evaluated on 5 axes (Education, Experience, Skills, Projects, Certifications) using a 1-5 Likert scale, providing granular and explainable scores.
+Unlike simple keyword matching, Virex uses a **Deterministic Weighted Scoring Engine**.
+
+#### **A. The Likert Scale (1-5)**
+Every parameter (Education, Experience, Skills, Projects, Certifications) is evaluated on a strict 1-5 scale:
+*   **1 (Poor)**: No evidence found or largely irrelevant.
+*   **2 (Fair)**: Minimal match, potential gaps, or only adjacent skills present.
+*   **3 (Good)**: Meets the core requirements of the Job Description.
+*   **4 (Very Good)**: Exceeds requirements, strong evidence of expertise.
+*   **5 (Exceptional)**: Perfect match, demonstrates leadership or elite achievements.
+
+#### **B. Role-Specific Weighting**
+A "3/5" in Experience matters more for a Senior dev than an Intern. We apply purely mathematical weights:
+
+| Parameter | 🎓 Intern/Fresher | 👨‍💻 Junior/Mid | 🚀 Senior/Lead |
+| :--- | :---: | :---: | :---: |
+| **Education** | **25%** | 15% | 5% |
+| **Experience** | 10% | **25%** | **40%** |
+| **Skills** | **30%** | **30%** | 35% |
+| **Projects** | **25%** | 20% | 15% |
+| **Certs** | 10% | 10% | 5% |
+
+**Resume Score Calculation**:
+`Resume Score = (Sum(Parameter Score × Weight)) × 20` _(Normalized to 0-100)_
 
 ### 2. ⚡ Automated Decision Workflow
-*   **Smart Thresholds**: The system automatically buckets candidates based on their Weighted Score:
-    *   **🟢 Shortlisted**: Immediate "Next Round" hiring action.
-    *   **🟠 Waitlisted**: Borderline candidates invited to an automated AI Interview to prove themselves.
-    *   **🔴 Rejected**: Candidates below the minimum cutoff.
-*   **One-Click Actions**: The Leaderboard buttons dynamically change based on status ("Invite", "Next Round", "Send Rejection").
+The system buckets candidates based on their Resume Score:
+*   **🟢 Shortlisted (Score > 75%)**: High probability of hire. Action: **"Next Round"**.
+*   **🟠 Waitlisted (Score 45-75%)**: Good profile but missing some signals. Action: **"Invite to Interview"**.
+*   **🔴 Rejected (Score < 45%)**: Does not meet minimum criteria. Action: **"Send Rejection"**.
 
-### 3. 🤖 Adaptive AI Interviewer
-*   **Context-Aware**: The AI interviewer reads the specific Job Description and the Candidate's Resume before starting.
-*   **Dynamic Questioning**: Follow-up questions are generated in real-time based on the candidate's previous answer.
-*   **Dynamic Promotion**:
-    *   Waitlisted candidates who perform well in the interview (Score > 70%) are **automatically promoted** to "Shortlisted" status.
-    *   Final Score = **40% Resume Match + 60% Interview Performance**.
+### 3. 🤖 Adaptive AI Interviewer & Final Scoring
+Candidates on the waitlist can "earn" a shortlist spot through the AI Interview.
 
-### 4. 📊 Detailed Analytics & Reporting
-*   **Explanations**: Every score comes with a "Reasoning" text explaining exactly why a candidate received that score.
-*   **Transcript Recording**: Full chat transcripts of the AI interview are saved.
-*   **Skill Gap Analysis**: Visualizes exactly which required skills are matched and which are missing.
+#### **A. Interview Grading (0-10 Scale)**
+The AI evaluates every answer in real-time based on:
+1.  **Technical Correctness**: Is the answer factually right?
+2.  **Depth**: Did they explain *how* and *why*, or just recite definitions?
+3.  **Clarity**: Communication style and detailed examples.
+
+#### **B. The "Promotion" Algorithm**
+We calculate a **Final Score** to decide if a candidate should be upgraded from Waitlist to Shortlist.
+*   **Formula**: `Final Score = (Resume Score × 0.4) + (Interview Score × 0.6)`
+*   *Why?* We give **60% weight** to the interview. A candidate with a weak resume (e.g., non-traditional background) can still win the job if they perform exceptionally (9/10) in the technical interview.
+
+**Threshold**: If `Final Score >= 70`, the candidate is **Automatically Promoted** to **🟢 Shortlisted**.
 
 ---
 
 ## 📐 System Architecture & Process Flow
 
 ![VirexProcessFlow](ProcessFlow.png)
-```
+
 
 ---
 

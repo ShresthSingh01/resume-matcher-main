@@ -36,7 +36,7 @@
 ## 📐 System Architecture & Process Flow
 
 ![VirexProcessFlow](ProcessFlow.png)
-```
+
 
 ---
 

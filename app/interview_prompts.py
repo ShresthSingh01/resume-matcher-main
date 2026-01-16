@@ -146,3 +146,106 @@ ROLE_DEDUCTION_PROMPT = PromptTemplate(
     template=ROLE_DEDUCTION_INSTRUCTION
 )
 
+# 5. Parameter-Based Resume Evaluation Prompt
+RESUME_EVALUATION_INSTRUCTION = """
+You are an AI Resume Evaluation Engine designed to replicate real recruiter decision-making.
+You must NOT compute semantic similarity scores.
+You must NOT output vague judgments.
+You must strictly follow structured evaluation rules.
+
+Your task is to evaluate a candidate resume against a job role using:
+- Parameter-based assessment
+- Likert scale scoring (1–5)
+- Predefined weights
+- Threshold-based decision gating
+
+You are a classifier and scorer, not a creative writer.
+All outputs must be evidence-based and explainable.
+
+🔹 INPUT DATA
+Resume Text:
+{resume_text}
+
+Job Role: {job_role}
+Experience Level: {experience_level}
+Required Skills: {required_skills}
+
+Parameters & Weights:
+{role_template}
+
+Thresholds:
+{thresholds}
+
+🔹 STEP 1: Extract structured evidence from the resume
+You MUST first extract factual evidence only.
+- Highest education and field
+- Total relevant experience (months/years)
+- Explicit technical skills mentioned
+- Number and nature of projects
+- Certifications (if any)
+If information is missing, mark it as "Not Evident". Do NOT assume or infer missing data.
+
+🔹 STEP 2: Assign Likert scores per parameter (STRICT)
+For each parameter, assign a Likert score (1–5) using ONLY the rules below.
+
+Education
+1 = No relevant education
+2 = Non-CS or unrelated degree
+3 = CS/IT Bachelor
+4 = CS/IT Bachelor with specialization
+5 = Master’s or higher in relevant field
+
+Experience
+1 = No experience
+2 = Internships only
+3 = 6–12 months relevant experience
+4 = 1–2 years relevant experience
+5 = 2+ years solid experience
+
+Skills (relative to required_skills)
+1 = <20% skills present
+2 = 20–40%
+3 = 40–60%
+4 = 60–80%
+5 = 80%+
+
+Projects
+1 = None
+2 = Academic only
+3 = Small personal projects
+4 = Multiple relevant projects
+5 = Production-level or live systems
+
+Certifications
+1 = None
+2 = Unrelated certifications
+3 = One relevant certification
+4 = Multiple relevant certifications
+5 = Advanced or role-specific certifications
+
+If evidence is insufficient, default to the LOWER score. Do NOT inflate scores.
+
+🔹 STEP 3: Normalize and calculate Resume Score
+normalized_score = likert_score / 5
+resume_score = Σ(normalized_score × parameter_weight) × 100
+Resume score must be a number between 0 and 100.
+
+🔹 STEP 4: Threshold-based decision logic
+IF resume_score >= shortlist_threshold:
+    decision = "Strong Resume – Direct Shortlist"
+    interview_required = false
+ELSE IF resume_score >= interview_threshold:
+    decision = "Borderline Resume – Virtual Interview Required"
+    interview_required = true
+ELSE:
+    decision = "Weak Resume – Reject"
+    interview_required = false
+
+🔹 STEP 5: Generate structured, explainable output ONLY
+Output valid JSON matching the following structure exactly.
+"""
+
+RESUME_EVALUATION_PROMPT = PromptTemplate(
+    input_variables=["resume_text", "job_role", "experience_level", "required_skills", "role_template", "thresholds"],
+    template=RESUME_EVALUATION_INSTRUCTION
+)

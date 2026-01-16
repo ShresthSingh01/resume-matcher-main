@@ -1,8 +1,8 @@
 import json
 import re
 from app.llm import get_llm
-from app.interview_prompts import MATCHING_PROMPT, PROFILE_EXTRACTION_PROMPT
-from app.schemas import CandidateProfile
+from app.interview_prompts import MATCHING_PROMPT, PROFILE_EXTRACTION_PROMPT, RESUME_EVALUATION_PROMPT, ROLE_DEDUCTION_PROMPT
+from app.schemas import CandidateProfile, ResumeEvaluationOutput
 import asyncio
 
 def extract_skills(resume_text: str, jd_text: str) -> dict:
@@ -260,3 +260,121 @@ async def extract_profile_async(resume_text: str) -> CandidateProfile:
     except Exception as e:
         print(f"❌ Profile Extraction Error: {e}")
         return CandidateProfile(name="Extraction Failed", email="", phone="", skills=[])
+
+async def evaluate_resume_structured(
+    resume_text: str,
+    job_role: str,
+    experience_level: str,
+    required_skills: list,
+    role_template: dict,
+    thresholds: dict
+) -> ResumeEvaluationOutput:
+    """
+    Evaluates a resume using the structured parameter-based approach.
+    Enforces deterministic scoring and decision logic.
+    """
+    llm = get_llm(temperature=0, max_tokens=2000)
+    if not llm:
+        raise ValueError("LLM not configured")
+
+    # 1. Invoke LLM for Extraction and Likert Scoring
+    chain = RESUME_EVALUATION_PROMPT | llm.with_structured_output(ResumeEvaluationOutput)
+    
+    try:
+        # We pass the raw template and thresholds to the LLM so it can 'try' to do it,
+        # but we will overwrite the math in Python.
+        result: ResumeEvaluationOutput = await chain.ainvoke({
+            "resume_text": resume_text,
+            "job_role": job_role,
+            "experience_level": experience_level,
+            "required_skills": ", ".join(required_skills),
+            "role_template": json.dumps(role_template, indent=2),
+            "thresholds": json.dumps(thresholds, indent=2)
+        })
+        
+        # 2. Enforce Math (Deterministic Calculation)
+        # resume_score = Σ(normalized_score × parameter_weight) × 100
+        # normalized_score = likert_score / 5
+        
+        params = role_template.get("parameters", {})
+        scores = result.likert_scores
+        
+        weighted_sum = 0.0
+        
+        # Mapping schema fields to parameter keys
+        # "education" -> params["education"]
+        param_map = {
+            "education": scores.education,
+            "experience": scores.experience,
+            "skills": scores.skills,
+            "projects": scores.projects,
+            "certifications": scores.certifications
+        }
+        
+        for key, likert_val in param_map.items():
+            weight = params.get(key, 0.0)
+            normalized = likert_val / 5.0
+            weighted_sum += (normalized * weight)
+            
+        final_score = round(weighted_sum * 100, 2)
+        
+        # 3. Enforce Decision Logic
+        shortlist_thresh = thresholds.get("shortlist", 75)
+        interview_thresh = thresholds.get("interview", 50)
+        
+        decision = ""
+        interview_req = False
+        
+        if final_score >= shortlist_thresh:
+            decision = "Strong Resume – Direct Shortlist"
+            interview_req = False
+        elif final_score >= interview_thresh:
+            decision = "Borderline Resume – Virtual Interview Required"
+            interview_req = True
+        else:
+            decision = "Weak Resume – Reject"
+            interview_req = False
+            
+        # 4. Update the Result Object
+        result.weighted_resume_score = final_score
+        result.decision = decision
+        result.interview_required = interview_req
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ Evaluation Error: {e}")
+        # Return a fallback empty object or re-raise
+
+async def detect_job_role(jd_text: str) -> str:
+    """
+    Uses LLM to deduce the primary job role from the JD.
+    """
+    llm = get_llm(temperature=0, max_tokens=50)
+    if not llm: return "Candidate"
+    
+    chain = ROLE_DEDUCTION_PROMPT | llm
+    try:
+        resp = await chain.ainvoke({"job_description": jd_text})
+        return resp.content.strip()
+    except:
+        return "Candidate"
+
+async def extract_required_skills(jd_text: str) -> list[str]:
+    """
+    Simpler extraction of JUST the skills from the JD for evaluation context.
+    Using a simplified version of the matching prompt logic or just reusing matching prompt with empty resume?
+    Actually, let's use a simple direct prompt or just reuse the existing extraction logic but ignoring the match.
+    For now, let's use a quick Regex fallback if LLM is overkill, but LLM is better.
+    Let's borrow the logic from extract_skills but focused only on JD.
+    """
+    # Reuse extract_skills but with empty resume to force "missing_skills" to be the list of all JD skills?
+    # No, matching prompt logic basically finds skills in JD and checks resume.
+    # If we pass empty resume, ALL JD skills will be in 'missing_skills'.
+    
+    # We can reuse existing function!
+    res = await extract_skills_async(resume_text="", jd_text=jd_text)
+    # The 'missing_skills' + 'matched_skills' (which should be 0) = All JD Skills
+    all_skills = res.get("missing_skills", []) + res.get("matched_skills", [])
+    return all_skills
+

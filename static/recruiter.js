@@ -66,20 +66,52 @@ function renderLeaderboard(candidates) {
         if (c.status === 'completed') {
             statusColor = 'var(--success)';
             statusText = 'Completed';
-        } else if (c.status === 'Interviewed') { // Legacy
+        } else if (c.status === 'Interviewed') {
             statusColor = 'var(--success)';
             statusText = 'Completed';
+        } else if (c.status === 'Shortlisted') {
+            statusColor = 'var(--success)'; // Green
+            statusText = 'Shortlisted';
+        } else if (c.status === 'Waitlist') {
+            statusColor = 'orange';
+            statusText = 'Waitlist';
+        } else if (c.status === 'Rejected') {
+            statusColor = 'var(--error)'; // Red
+            statusText = 'Rejected';
+        } else {
+            statusText = c.status || 'Pending';
         }
 
-        const actionBtn = `
-            <button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem; margin-right:0.5rem;">
-                View
-            </button>
-            ${statusText !== 'Completed' ?
-                `<button class="btn btn-primary" onclick="initiateInterviewFromId('${c.id}')" style="padding:0.5rem 1rem; font-size:0.8rem;">
-                Invite
-            </button>` : ''}
-        `;
+        let actionBtn = '';
+
+        if (statusText === 'Completed') {
+            actionBtn = `<button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem;">View Report</button>`;
+        } else {
+            // Pending / Shortlisted / Rejected / Waitlist
+            let btnLabel = 'Invite';
+            let btnClass = 'btn-primary';
+            let confirmMsg = 'Send interview invitation?';
+
+            if (c.status === 'Shortlisted') {
+                btnLabel = 'Next Round';
+                btnClass = 'btn-success'; // Need to ensure css exists or use style
+                confirmMsg = 'Send Next Round Hiring email?';
+            } else if (c.status === 'Rejected') {
+                btnLabel = 'Send Rejection';
+                btnClass = 'btn-danger'; // Need to ensure css exists or use style
+                confirmMsg = 'Send Rejection email?';
+            } else {
+                // Waitlist or Matched
+                btnLabel = 'Invite to Interview';
+                confirmMsg = 'Send AI Interview Invitation?';
+            }
+
+            actionBtn = `
+            <button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem; margin-right:0.5rem;">View</button>
+            <button class="btn ${btnClass}" onclick="initiateInterviewFromId('${c.id}', '${confirmMsg}')" style="padding:0.5rem 1rem; font-size:0.8rem; background-color: ${btnClass === 'btn-danger' ? 'var(--error)' : (btnClass === 'btn-success' ? 'var(--success)' : '')}; color:white;">
+                ${btnLabel}
+            </button>`;
+        }
 
         tr.innerHTML = `
             <td style="padding:1rem;">#${index + 1}</td>
@@ -95,8 +127,8 @@ function renderLeaderboard(candidates) {
     });
 }
 
-async function initiateInterviewFromId(candidateId) {
-    if (!confirm("Send interview invitation email to this candidate?")) return;
+async function initiateInterviewFromId(candidateId, confirmMsg = "Send invitation?") {
+    if (!confirm(confirmMsg)) return;
 
     try {
         const res = await fetch(`/invite/candidate/${candidateId}`, { method: 'POST' });
@@ -104,7 +136,7 @@ async function initiateInterviewFromId(candidateId) {
         if (res.ok) {
             alert(data.message);
         } else {
-            alert("Error sending invite: " + (data.detail || "Unknown error"));
+            alert("Error sending email: " + (data.detail || "Unknown error"));
         }
     } catch (e) {
         alert("Failed to send invite: " + e);
@@ -134,6 +166,9 @@ function setupUpload() {
             formData.append('resumes', resumeFiles[i]);
         }
         formData.append('job_description', jdText);
+
+        const templateMode = document.getElementById('template-select').value;
+        formData.append('template_mode', templateMode);
 
         setLoading(true);
 
@@ -196,6 +231,52 @@ function showCandidateDetails(index) {
     document.getElementById('m-match-score').textContent = (c.match_score !== undefined && c.match_score !== null) ? Number(c.match_score).toFixed(1) + '%' : '0%';
     document.getElementById('m-interview-score').textContent = c.interview_score ? c.interview_score + '/100' : '-';
     document.getElementById('m-final-score').textContent = c.final_score ? c.final_score.toFixed(1) + '%' : '-';
+
+    // NEW: Evaluation Details
+    let evalData = null;
+    try {
+        if (c.resume_evaluation_data) {
+            evalData = typeof c.resume_evaluation_data === 'string' ? JSON.parse(c.resume_evaluation_data) : c.resume_evaluation_data;
+        }
+    } catch (e) { }
+
+    // Inject Decision Tag if available
+    const decisionElem = document.createElement('div');
+    if (evalData && evalData.decision) {
+        let color = 'var(--text-muted)';
+        let bg = 'rgba(0,0,0,0.05)';
+        if (evalData.decision.includes('Strong')) { color = 'var(--success)'; bg = 'rgba(0,255,100,0.1)'; }
+        if (evalData.decision.includes('Borderline')) { color = '#b35900'; bg = 'rgba(255,165,0,0.1)'; } // Orange-ish
+        if (evalData.decision.includes('Weak')) { color = 'var(--error)'; bg = 'rgba(255,0,0,0.1)'; }
+
+        // We can try to guess the role or just say "Role-Based Evaluation"
+        decisionElem.innerHTML = `
+        <div class="stat-box" style="margin-top:1.5rem; border:1px solid ${color}; background:${bg}; padding:1rem; border-radius:8px;">
+            <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; font-weight:bold; color:var(--text-muted); margin-bottom:0.5rem;">Virex Evaluation</div>
+            <div class="stat-value" style="font-size:1.1rem; color:${color}; margin-bottom:0.5rem;">${evalData.decision}</div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem; font-size:0.85rem; margin-top:0.8rem; border-top:1px solid rgba(0,0,0,0.1); padding-top:0.8rem;">
+                 <div><span style="opacity:0.6;">Education:</span> <b>${evalData.likert_scores.education}/5</b></div>
+                 <div><span style="opacity:0.6;">Experience:</span> <b>${evalData.likert_scores.experience}/5</b></div>
+                 <div><span style="opacity:0.6;">Skills:</span> <b>${evalData.likert_scores.skills}/5</b></div>
+                 <div><span style="opacity:0.6;">Projects:</span> <b>${evalData.likert_scores.projects}/5</b></div>
+                 <div style="grid-column:1/-1;"><span style="opacity:0.6;">Certs:</span> <b>${evalData.likert_scores.certifications}/5</b></div>
+            </div>
+        </div>`;
+    } else {
+        // Fallback for legacy candidates
+        decisionElem.innerHTML = `<div style="margin-top:1rem; padding:1rem; border:1px dashed #ccc; border-radius:8px; font-size:0.85rem; opacity:0.6; text-align:center;">
+            Basic Match (Legacy)<br>Re-upload JSON/Resume to see Virex Evaluation
+         </div>`;
+    }
+
+    // Remove existing
+    const perfContainer = document.getElementById('m-final-score').parentNode.parentNode;
+    const existingDecision = perfContainer.querySelector('.decision-box');
+    if (existingDecision) existingDecision.remove();
+
+    decisionElem.classList.add('decision-box');
+    perfContainer.appendChild(decisionElem);
 
     // 2. Badges
     const badgeContainer = document.getElementById('m-badges');

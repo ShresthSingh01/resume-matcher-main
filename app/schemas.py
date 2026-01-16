@@ -67,3 +67,30 @@ class InterviewSession(BaseModel):
     # Metadata
     candidate_id: Optional[str] = None
     created_at: datetime = datetime.now()
+
+class ExtractedEvidence(BaseModel):
+    education: str
+    experience: str
+    skills: List[str]
+    projects: str
+    certifications: str
+
+class LikertScores(BaseModel):
+    education: int
+    experience: int
+    skills: int
+    projects: int
+    certifications: int
+
+class ResumeFeedback(BaseModel):
+    strengths: List[str]
+    weaknesses: List[str]
+    improvement_suggestions: List[str]
+
+class ResumeEvaluationOutput(BaseModel):
+    extracted_evidence: ExtractedEvidence
+    likert_scores: LikertScores
+    weighted_resume_score: float
+    decision: str
+    interview_required: bool
+    resume_feedback: ResumeFeedback

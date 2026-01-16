@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Resume Architect | DeepMatch</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=3">
     <!-- Ionicons for clean icons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -60,6 +60,20 @@
                         Job Description
                     </h2>
                     <textarea id="jd-text" placeholder="Paste the full job description here..."></textarea>
+
+                    <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid rgba(0,0,0,0.1);">
+                        <label for="template-select"
+                            style="display:block; font-weight:bold; margin-bottom:0.5rem; font-size:0.9rem;">
+                            <ion-icon name="options-outline"></ion-icon> Evaluation Template
+                        </label>
+                        <select id="template-select"
+                            style="width:100%; padding:0.5rem; border-radius:6px; border:1px solid #ccc; background:#f9f9f9;">
+                            <option value="auto">✨ Auto-Detect from JD (Default)</option>
+                            <option value="intern">🎓 Intern / Fresher / Trainee</option>
+                            <option value="junior">👨‍💻 Junior / Mid Level</option>
+                            <option value="senior">🚀 Senior / Lead / Manager</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Action Button -->
@@ -183,7 +197,7 @@
                 </div>
 
                 <!-- RECRUITER SCRIPT -->
-                <script src="/static/recruiter.js"></script>
+                <script src="/static/recruiter.js?v=3"></script>
 </body>
 
 </html>

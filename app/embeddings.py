@@ -1,9 +1,19 @@
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
-# Global model
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# Global model - DISABLED for Virex Logic (and to fix timeout error)
+# model = SentenceTransformer("all-MiniLM-L6-v2")
+
+class DummyModel:
+    def encode(self, texts):
+        # Return dummy zero embeddings of shape (len(texts), 384)
+        if isinstance(texts, str):
+            texts = [texts]
+        # 384 is typical BERT dim
+        return np.zeros((len(texts), 384))
+
+model = DummyModel()
 
 # In-memory storage for duplicates (list of dicts or embeddings)
 # We store embeddings as a numpy array for speed if possible, but list is fine for small scale.

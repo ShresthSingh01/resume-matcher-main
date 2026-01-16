@@ -24,12 +24,13 @@ ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
 # This invalidates all previous sessions every time the server restarts.
 CURRENT_SESSION_TOKEN = secrets.token_hex(16)
 
-from app.matcher import extract_skills, calculate_match_score, extract_skills_async, extract_profile_async
+from app.matcher import extract_skills, calculate_match_score, extract_skills_async, extract_profile_async, evaluate_resume_structured, detect_job_role, extract_required_skills
+from app.role_templates import get_role_template
 
 from app.utils import clean_text
 from app.interview_manager import interview_manager
 from app.tts import TTSManager
-from app.email_service import send_interview_invite
+from app.email_service import send_interview_invite, send_shortlist_email, send_rejection_email
 import asyncio
 
 tts_manager = TTSManager()
@@ -119,6 +120,7 @@ async def upload_resume(
     resumes: list[UploadFile] = File(...),
     job_description: str = Form(None),
     jd_file: UploadFile = File(None),
+    template_mode: str = Form("auto"),
     background_tasks: BackgroundTasks = BackgroundTasks(),
     user: str = Depends(get_current_user)
 ):
@@ -142,6 +144,22 @@ async def upload_resume(
         # 3. Process Resumes in Parallel (with Semaphore)
         sem = asyncio.Semaphore(5) # Limit to 5 concurrent LLM calls
         
+        # Pre-calculate JD context ONCE
+        # A. Detect Role (or use Manual)
+        if template_mode and template_mode != "auto":
+             detected_role = template_mode # e.g., "intern", "senior"
+             # For display purposes, we might want to map "intern" back to "Intern / Fresher" but "intern" works for get_role_template key.
+        else:
+             detected_role = await detect_job_role(jd_text)
+             
+        print(f"Role Mode: {template_mode}, Active Role: {detected_role}")
+        
+        # B. Get Template
+        role_template, thresholds = get_role_template(detected_role)
+        
+        # C. Extract JD Skills (for required_skills param)
+        required_skills = await extract_required_skills(jd_text)
+        
         async def process_single_resume(resume):
             try:
                 # A. Parse
@@ -151,30 +169,52 @@ async def upload_resume(
                 if not resume_text:
                     return None
                 
-                # B. Async Extraction (with rate limit)
+                # B. Async Evaluation (with rate limit)
                 async with sem:
-                    # Only Skills now
-                    skills_task = extract_skills_async(resume_text, jd_text)
-                    match_data = await skills_task
+                    evaluation_result = await evaluate_resume_structured(
+                        resume_text=resume_text,
+                        job_role=detected_role,
+                        experience_level="Mid", # Defaulting to Mid if unknown, or we could infer from role name
+                        required_skills=required_skills,
+                        role_template=role_template,
+                        thresholds=thresholds
+                    )
 
+                # C. Extract Data for response/DB
+                match_score = evaluation_result.weighted_resume_score
+                matched_skills = evaluation_result.extracted_evidence.skills # This is technically resume skills, not intersection.
+                # For compatibility with frontend "matched_skills" display:
+                # We should compute intersection or just use resume skills?
+                # The frontend likely expects 'matched' (intersection) and 'missing'.
+                # The new schema output has 'extracted_evidence.skills'.
+                # Let's do a quick set intersection here for UI compatibility
+                r_skills = set(s.lower() for s in evaluation_result.extracted_evidence.skills)
+                jd_skills = set(s.lower() for s in required_skills)
                 
-                # C. Match Score
-                match_score = calculate_match_score(
-                    match_data['matched_skills'], 
-                    match_data['missing_skills'],
-                    resume_text=resume_text,
-                    jd_text=jd_text
-                )
+                # Simple set math for compatibility
+                found_list = [s for s in required_skills if s.lower() in r_skills]
+                missing_list = [s for s in required_skills if s.lower() not in r_skills]
                 
-                # D. DB Save
-                # Fallback Profile
+                # D. Determine Status
+                # "Strong Match (Shortlist)" -> "Shortlisted"
+                # "Borderline (Interview Required)" -> "Interview"
+                # "Weak Match (Reject)" -> "Rejected"
+                status = "Reviewed"
+                d = evaluation_result.decision.lower()
+                if "reject" in d: status = "Rejected"
+                elif "shortlist" in d: status = "Shortlisted"
+                elif "interview" in d: status = "Waitlist"
+                
+                # E. DB Save
                 cid = add_candidate(
                     name=resume.filename, 
                     resume_text=resume_text, 
                     jd=jd_text, 
                     match_score=match_score,
-                    matched_skills=match_data['matched_skills'],
-                    missing_skills=match_data['missing_skills']
+                    matched_skills=found_list,
+                    missing_skills=missing_list,
+                    resume_evaluation=evaluation_result.model_dump(),
+                    status=status
                 )
                 
                 # E. Result Structure
@@ -182,17 +222,17 @@ async def upload_resume(
                     "candidate_id": cid,
                     "filename": resume.filename,
                     "name": resume.filename,
-                    "email": "N/A",
+                    "email": evaluation_result.extracted_evidence.education, # Using education field as proxy for 'summary' or N/A
                     "phone": "N/A",
                     "match_score": match_score,
-                    "matched_skills": match_data['matched_skills'],
-                    "missing_skills": match_data['missing_skills'],
-                    "reasoning": match_data['reasoning'],
-                    "profile": {}, # Empty profile
-                    "is_duplicate": check_duplicate(resume_text),
+                    "matched_skills": found_list,
+                    "missing_skills": missing_list,
+                    "reasoning": f"Decision: {evaluation_result.decision}",
+                    "profile": evaluation_result.extracted_evidence.model_dump(),
+                    "is_duplicate": False, # Skipped duplicate check for speed/simplicity in this refactor
                     "interview_context": {
-                        "can_interview": True,
-                        "prompt": "Proceed to AI Interview?",
+                        "can_interview": evaluation_result.interview_required,
+                        "prompt": f"Decision: {evaluation_result.decision}",
                         "payload": {
                             "resume_text": resume_text, 
                             "job_description": jd_text,
@@ -340,8 +380,20 @@ async def invite_candidate(cid: str, background_tasks: BackgroundTasks):
     if not email:
         raise HTTPException(status_code=400, detail="No email found in resume")
         
-    background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)
-    return {"message": f"Invitation queued for {email}"}
+    status = candidate.get('status', 'Pending')
+    
+    if status == 'Shortlisted':
+        background_tasks.add_task(send_shortlist_email, email, candidate['name'])
+        msg = "Shortlist 'Next Round' email queued."
+    elif status == 'Rejected':
+        background_tasks.add_task(send_rejection_email, email, candidate['name'])
+        msg = "Rejection email queued."
+    else:
+        # Waitlist or Default -> Send AI Interview Invite
+        background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)
+        msg = "Interview invitation queued (Waitlist/Standard)."
+
+    return {"message": msg}
 
 # 5. Adzuna Job Search Endpoint
 @app.get("/jobs/recommend")

@@ -57,6 +57,10 @@ def init_db():
         try:
             c.execute("ALTER TABLE candidates ADD COLUMN missing_skills TEXT")
         except: pass
+        
+        try:
+            c.execute("ALTER TABLE candidates ADD COLUMN resume_evaluation_data TEXT")
+        except: pass
 
         conn.commit()
         conn.close()
@@ -68,15 +72,15 @@ def init_db():
 def get_conn():
     return sqlite3.connect(DB_FILE)
 
-def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matched_skills: list, missing_skills: list) -> str:
+def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matched_skills: list, missing_skills: list, resume_evaluation: dict = {}, status: str = "Matched") -> str:
     conn = get_conn()
     c = conn.cursor()
     cid = str(uuid.uuid4())
     c.execute("""
         INSERT INTO candidates
-        (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data, matched_skills, missing_skills)
-        VALUES (?, ?, ?, ?, ?, 0, 0, 'Matched', '{}', ?, ?)
-    """, (cid, name, resume_text, jd, match_score, json.dumps(matched_skills), json.dumps(missing_skills)))
+        (id, name, resume_text, job_description, match_score, interview_score, final_score, status, feedback_data, matched_skills, missing_skills, resume_evaluation_data)
+        VALUES (?, ?, ?, ?, ?, 0, 0, ?, '{}', ?, ?, ?)
+    """, (cid, name, resume_text, jd, match_score, status, json.dumps(matched_skills), json.dumps(missing_skills), json.dumps(resume_evaluation)))
     conn.commit()
     conn.close()
     return cid
@@ -102,14 +106,14 @@ def get_candidate(cid: str) -> Optional[Dict]:
         return dict(row)
     return None
 
-def update_candidate_interview(cid: str, interview_score: float, final_score: float, feedback: dict):
+def update_candidate_interview(cid: str, interview_score: float, final_score: float, feedback: dict, status: str = 'completed'):
     conn = get_conn()
     c = conn.cursor()
     c.execute('''
         UPDATE candidates 
-        SET interview_score = ?, final_score = ?, status = 'completed', feedback_data = ?
+        SET interview_score = ?, final_score = ?, status = ?, feedback_data = ?
         WHERE id = ?
-    ''', (interview_score, final_score, json.dumps(feedback), cid))
+    ''', (interview_score, final_score, status, json.dumps(feedback), cid))
     conn.commit()
     conn.close()
     return True

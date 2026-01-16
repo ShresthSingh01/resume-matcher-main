@@ -253,10 +253,21 @@ class InterviewManager:
         scores = [q.score for q in session.question_scores]
         avg_interview_score = sum(scores) / len(scores) if scores else 0
         
-        match_part = session.initial_match_score * 0.3
-        interview_part = (avg_interview_score * 10) * 0.7
+        # Weighted Score Calculation
+        # Resume: 40% (Background)
+        # Interview: 60% (Performance - Higher weight to give Waitlisted candidates a chance)
+        match_part = session.initial_match_score * 0.4
+        interview_part = (avg_interview_score * 10) * 0.6
         final_score = match_part + interview_part
         
+        # Determine Final Status
+        # Threshold: 70/100 to be upgrades to Shortlisted
+        new_status = "Interviewed" # Default state (completed but not necessarily shortlisted)
+        if final_score >= 70:
+            new_status = "Shortlisted"
+        else:
+            new_status = "Rejected"
+
         if session.candidate_id and session.candidate_id != "unknown":
              update_candidate_interview(
                  session.candidate_id, 
@@ -265,7 +276,8 @@ class InterviewManager:
                  {"transcript": [
                     {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
                     for q in session.question_scores
-                 ]}
+                 ]},
+                 status=new_status
              )
         
         return {

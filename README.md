@@ -53,6 +53,28 @@ We calculate a **Final Score** to decide if a candidate should be upgraded from 
 
 **Threshold**: If `Final Score >= 70`, the candidate is **Automatically Promoted** to **🟢 Shortlisted**.
 
+### 4. 🛡️ Anti-Cheating & Security Suite
+Virex implements a robust **"3-Ring Defense"** strategy to ensure interview integrity:
+
+#### **Ring 1: Browser Lockdown**
+*   **Fullscreen Enforcement**: Candidates must remain in fullscreen. Exiting triggers a visible "Proctoring Alert".
+*   **Focus Tracking**: Switching tabs or minimizing the window is detected as a violation.
+*   **Input Blocking**: Right-click, Copy, Cut, and Paste actions are disabled to prevent copying questions.
+
+#### **Ring 2: Secondary Device Countermeasures**
+*   **Strict Tymer**: Questions have a tight **40-second limit** to minimize "lookup time".
+*   **Unselectable Text**: Question text cannot be highlighted, preventing easy OCR scanning.
+
+#### **Ring 3: Behavioral Monitoring & Backend Flagging**
+*   **Webcam Presence**: Live "Self-Audit" webcam feed displayed on screen.
+*   **Typing Heuristics**: Detects "Superhuman" typing speeds (instant text injection) and blocks the input.
+*   **Persistent Flagging**: All violations are logged in the database.
+*   **3-Strike Termination**: Upon the 3rd violation, the interview is **Terminated immediately**.
+
+#### **🔒 Permanent Lockout**
+To prevent gaming the system, candidates with the following statuses are **permanently blocked** from restarting or retaking the interview:
+*   `Shortlisted`, `Rejected`, `Terminated`, `Completed`.
+
 ---
 
 ## 📐 System Architecture & Process Flow

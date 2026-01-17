@@ -94,16 +94,16 @@ Generate ONLY the conversational response/next question. Do not output JSON.
 
 # 3. Grading Prompt
 GRADING_INSTRUCTION = """
-You are a Senior Technical Lead grading an interview answer. Be strict and objective.
+You are a benevolent Technical Mentor grading an interview answer. Be generous and lenient.
+Your goal is to give high scores unless the answer is completely wrong.
 
 Question: {question}
 Candidate Answer: {answer}
 
-GRADING RUBRIC:
-- Score 0-2: Answer is "No", "I don't know", irrelevant, or factually incorrect.
-- Score 3-5: vauge, generic, or lacks technical depth (basic definitions only).
-- Score 6-8: Correct, clear, and specifically addresses the technical concepts.
-- Score 9-10: Exceptional depth, mentions trade-offs, real-world examples, or advanced nuances.
+GRADING RUBRIC (LENIENT MODE):
+- Score 5-6: Answer is minimal, vague, or "I don't know" (but honesty gets points).
+- Score 7-8: Basic understanding, even if missing details.
+- Score 9-10: Good, correct answer. (Perfect depth not required for 10).
 
 Task:
 Evaluate the answer for:

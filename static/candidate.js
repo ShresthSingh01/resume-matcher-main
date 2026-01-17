@@ -12,9 +12,9 @@ let isRecording = false;
 
 // Anti-Cheat & Timer State
 let timerInterval = null;
-let timeLeft = 45;
+let timeLeft = 40; // Ring 2: Reduced to 40s
 let cheatingWarnings = 0;
-const TIME_LIMIT = 45;
+const TIME_LIMIT = 40;
 let handsFreeMode = true;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -38,16 +38,30 @@ document.addEventListener('DOMContentLoaded', () => {
         // Setup Start Button
         if (startBtn) {
             console.log("Start button found, attaching listener");
-            startBtn.onclick = () => {
+            startBtn.onclick = async () => {
                 console.log("Start button clicked");
+
+                // Ring 1: Fullscreen (Must be first for user gesture)
+                try {
+                    await document.documentElement.requestFullscreen();
+                } catch (e) {
+                    console.warn("Fullscreen denied - attempting to proceed anyway", e);
+                }
+
+                // Ring 3: Webcam init
+                try {
+                    await initWebcam();
+                } catch (e) {
+                    console.error("Webcam init failed", e);
+                    alert("Camera access is required. Please allow access and reload.");
+                    return;
+                }
+
                 landingSection.classList.add('hidden');
                 interviewSection.classList.remove('hidden');
+                document.getElementById('webcam-container').classList.remove('hidden');
 
                 // Initialize Interview
-                // We need to fetch the context first or just start. 
-                // The current API /interview/start requires a 'payload' with resume_text/match_score 
-                // OR getting it from DB via candidate_id.
-                // The current backend endpoint takes 'StartInterviewRequest' with optional candidate_id.
                 startInterview(candidateId);
             };
         }
@@ -290,23 +304,35 @@ function setupInterview() {
     const micBtn = document.getElementById('mic-btn');
     const handsFreeToggle = document.getElementById('hands-free-toggle');
 
-    // Proctoring
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden && !document.getElementById('interview-section').classList.contains('hidden')) {
-            cheatingWarnings++;
-            const overlay = document.getElementById('warning-overlay');
-            if (overlay) {
-                overlay.classList.remove('hidden');
-                if (cheatingWarnings >= 2) {
-                    overlay.querySelector('h3').textContent = "Interview Terminated";
-                    overlay.querySelector('p').textContent = "Multiple focus violations detected.";
-                    setTimeout(() => location.reload(), 3000);
-                } else {
-                    setTimeout(() => overlay.classList.add('hidden'), 3000);
-                }
-            }
+    // Proctoring (Ring 1 & 2)
+
+    // 1. Fullscreen Enforcement
+    document.addEventListener("fullscreenchange", () => {
+        if (!document.fullscreenElement && !document.getElementById('interview-section').classList.contains('hidden')) {
+            triggerViolation("Fullscreen Exit detected.");
         }
     });
+
+    // 2. Focus Tracking
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden && !document.getElementById('interview-section').classList.contains('hidden')) {
+            triggerViolation("Tab Switch / Minimize detected.");
+        }
+    });
+
+    window.onblur = () => {
+        if (!document.getElementById('interview-section').classList.contains('hidden')) {
+            // Optional: Blur is very sensitive, relies on visibilitychange mostly
+            // triggerViolation("Focus Lost.");
+        }
+    };
+
+    // 3. Input Blocking (Ring 1)
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('copy', event => { event.preventDefault(); alert("Copying is disabled."); });
+    document.addEventListener('cut', event => event.preventDefault());
+    document.addEventListener('paste', event => { event.preventDefault(); alert("Pasting is disabled."); });
+
 
     if (handsFreeToggle) {
         handsFreeToggle.checked = true;
@@ -315,11 +341,29 @@ function setupInterview() {
 
     if (!sendBtn) return;
 
+    // Heuristic: Superhuman Typing (Ring 3)
+    let lastInputLen = 0;
+    input.addEventListener('input', (e) => {
+        const currentLen = input.value.length;
+        const diff = currentLen - lastInputLen;
+
+        // If more than 10 chars added instantly (and not via voice)
+        if (diff > 10 && !isRecording) {
+            // Check time difference? JS 'input' is sync, so diff usually comes from paste or autocomplete
+            // We blocked 'paste' event, but some browser extensions or drag-drop bypass it.
+            // Let's be strict: clear it.
+            alert(" Rapid text entry detected. Please type manually.");
+            input.value = ""; // Clear suspicious input
+        }
+        lastInputLen = input.value.length;
+    });
+
     const handleSend = async () => {
         stopTimer();
         const text = input.value.trim();
         if (!text) return;
 
+        lastInputLen = 0; // Reset tracker
         addMessage('user', text);
         input.value = '';
 
@@ -509,4 +553,65 @@ async function speak(text) {
     utter.onstart = () => updateAvatarState('speaking');
     utter.onend = () => { updateAvatarState('idle'); startTimer(); };
     synthesis.speak(utter);
+}
+
+// ---------- Anti-Cheat Helpers ----------
+
+function triggerViolation(reason) {
+    cheatingWarnings++;
+
+    // Send flag to backend
+    if (sessionData && sessionData.id) {
+        fetch('/interview/flag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionData.id, reason: reason })
+        }).catch(e => console.error("Flag send failed", e));
+    }
+
+    const overlay = document.getElementById('warning-overlay');
+
+    if (overlay) {
+        overlay.classList.remove('hidden');
+        overlay.querySelector('h3').textContent = "Proctoring Alert";
+        overlay.querySelector('p').textContent = `${reason} Warning ${cheatingWarnings}/3.`;
+
+        if (cheatingWarnings >= 3) {
+            overlay.querySelector('h3').textContent = "Interview Terminated";
+            overlay.querySelector('p').textContent = "Maximum violations exceeded.";
+            overlay.style.background = "rgba(0,0,0,0.95)";
+
+            // Call Backend to Lock user out
+            if (sessionData && sessionData.id) {
+                fetch('/interview/terminate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionData.id, reason: reason })
+                });
+            }
+
+            // Disable inputs
+            const input = document.getElementById('user-input');
+            if (input) input.disabled = true;
+            stopTimer();
+
+            // Reload after delay
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        } else {
+            // Auto-resume after 3s if not fatal
+            setTimeout(() => {
+                // Return to fullscreen if possible
+                try { document.documentElement.requestFullscreen(); } catch (e) { }
+                overlay.classList.add('hidden');
+            }, 4000);
+        }
+    }
+}
+
+async function initWebcam() {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    const video = document.getElementById('webcam-feed');
+    if (video) video.srcObject = stream;
 }

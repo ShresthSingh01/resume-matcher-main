@@ -61,6 +61,10 @@ def init_db():
         try:
             c.execute("ALTER TABLE candidates ADD COLUMN resume_evaluation_data TEXT")
         except: pass
+        
+        try:
+            c.execute("ALTER TABLE candidates ADD COLUMN flags TEXT")
+        except: pass
 
         conn.commit()
         conn.close()
@@ -117,6 +121,24 @@ def update_candidate_interview(cid: str, interview_score: float, final_score: fl
     conn.commit()
     conn.close()
     return True
+
+def flag_candidate(cid: str, violation: str):
+    conn = get_conn()
+    c = conn.cursor()
+    # Get existing flags
+    c.execute("SELECT flags FROM candidates WHERE id = ?", (cid,))
+    row = c.fetchone()
+    current_flags = []
+    if row and row[0]:
+        try:
+            current_flags = json.loads(row[0])
+        except: pass
+    
+    current_flags.append({"violation": violation, "timestamp": str(uuid.uuid4())}) # simplified tsp
+    
+    c.execute("UPDATE candidates SET flags = ? WHERE id = ?", (json.dumps(current_flags), cid))
+    conn.commit()
+    conn.close()
 
 def update_candidate_status(cid: str, status: str):
     conn = get_conn()

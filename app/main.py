@@ -6,9 +6,9 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 
-from app.db import init_db, add_candidate, get_leaderboard, get_candidate, update_candidate_interview, clear_db, update_candidate_status
+from app.db import init_db, add_candidate, get_leaderboard, get_candidate, update_candidate_interview, clear_db, update_candidate_status, flag_candidate
 from app.schemas import StartInterviewRequest, InterviewAnswerRequest, InterviewResultRequest
 from app.resume_parser import parse_resume, extract_email
 from app.embeddings import check_duplicate, load_initial_embeddings
@@ -274,6 +274,13 @@ async def start_interview(request: StartInterviewRequest):
             candidate = get_candidate(request.candidate_id)
             if not candidate:
                  raise HTTPException(status_code=404, detail="Candidate not found.")
+            
+            # BLOCK RESTART LOGIC
+            current_status = (candidate.get('status') or "").lower()
+            forbidden_statuses = ['shortlisted', 'rejected', 'terminated', 'completed', 'interviewed']
+            if any(s in current_status for s in forbidden_statuses):
+                raise HTTPException(status_code=403, detail="Interview already completed or terminated.")
+
             resume_text = candidate['resume_text']
             jd_text = candidate['job_description']
             match_score = candidate['match_score']
@@ -397,6 +404,33 @@ async def invite_candidate(cid: str, background_tasks: BackgroundTasks):
         msg = "Interview invitation queued (Waitlist/Standard)."
 
     return {"message": msg}
+
+class FlagRequest(BaseModel):
+    session_id: str
+    reason: str
+
+@app.post("/interview/flag")
+async def flag_violation(req: FlagRequest):
+    session = interview_manager.get_session(req.session_id)
+    if not session or not session.candidate_id:
+         # Log even if session not found? Safe to ignore for now
+         return {"status": "ignored"}
+    
+    flag_candidate(session.candidate_id, req.reason)
+    return {"status": "flagged"}
+
+@app.post("/interview/terminate")
+async def terminate_interview(req: FlagRequest):
+    session = interview_manager.get_session(req.session_id)
+    if not session or not session.candidate_id:
+         return {"status": "ignored"}
+    
+    # 1. Flag
+    flag_candidate(session.candidate_id, "TERMINATED: " + req.reason)
+    # 2. Update Status to Terminated
+    update_candidate_status(session.candidate_id, "Terminated")
+    
+    return {"status": "terminated"}
 
 # 5. Adzuna Job Search Endpoint
 @app.get("/jobs/recommend")

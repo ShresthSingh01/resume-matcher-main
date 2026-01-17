@@ -12,6 +12,73 @@
 </head>
 
 <body>
+    <style>
+        .webcam-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 160px;
+            height: 120px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid var(--error);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        #webcam-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            /* Mirror */
+        }
+
+        .rec-badge {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(255, 0, 0, 0.8);
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: bold;
+        }
+
+        .rec-dot {
+            width: 6px;
+            height: 6px;
+            background: white;
+            border-radius: 50%;
+            animation: pulse-red 1s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* Anti-Copy (Ring 2) */
+        /* Anti-Copy (Ring 2) */
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+    </style>
 
     <div class="container">
 
@@ -26,7 +93,7 @@
             <div class="card" style="text-align:center; max-width: 600px; margin: 0 auto;">
                 <h2>Ready to begin?</h2>
                 <p style="color:var(--text-muted); margin-bottom:2rem;">
-                    You are invited to a technical screening. 
+                    You are invited to a technical screening.
                     Ensure you are in a quiet environment and have your microphone ready.
                 </p>
                 <button id="start-btn" class="btn btn-primary" style="font-size:1.5rem; padding:1.5rem 3rem;">
@@ -42,6 +109,14 @@
                 <div class="avatar-container">
                     <div class="avatar-ring"></div>
                     <div class="avatar-sphere" id="ai-avatar"></div>
+                </div>
+
+                <!-- Webcam Feed (Ring 3) -->
+                <div id="webcam-container" class="webcam-container hidden">
+                    <video id="webcam-feed" autoplay muted playsinline></video>
+                    <div class="rec-badge">
+                        <div class="rec-dot"></div> PROCTORING ACTIVE
+                    </div>
                 </div>
 
                 <!-- Timer & Status -->
@@ -92,8 +167,11 @@
                 <div class="grid-2">
                     <!-- Scores -->
                     <div>
-                        <h3 style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">Performance</h3>
-                        <div style="display:flex; justify-content:space-around; background:rgba(0,0,0,0.05); padding:1.5rem; border-radius:1rem;">
+                        <h3
+                            style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">
+                            Performance</h3>
+                        <div
+                            style="display:flex; justify-content:space-around; background:rgba(0,0,0,0.05); padding:1.5rem; border-radius:1rem;">
                             <!-- Only show Interview Score to candidate? Or both? Let's show Interview Score primarily -->
                             <div style="text-align:center;">
                                 <div style="font-size:2rem; font-weight:bold; color:var(--text-main);">
@@ -106,7 +184,9 @@
 
                     <!-- Recommended Roles -->
                     <div>
-                        <h3 style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">Preferred Job Roles</h3>
+                        <h3
+                            style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">
+                            Preferred Job Roles</h3>
                         <div id="report-roles" style="display:flex; flex-direction:column; gap:0.5rem;">
                             <!-- Populated by JS -->
                         </div>
@@ -114,7 +194,9 @@
                 </div>
 
                 <div style="margin-top:2rem;">
-                    <h3 style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">Detailed Feedback</h3>
+                    <h3
+                        style="margin-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:0.5rem;">
+                        Detailed Feedback</h3>
                     <div id="report-breakdown">
                         <!-- Populated by JS -->
                     </div>
@@ -122,7 +204,8 @@
 
                 <!-- Recommended Jobs -->
                 <div style="margin-top:2rem;">
-                    <h3 style="margin-bottom:1rem; border-bottom:var(--border-width) solid #000; padding-bottom:0.5rem;">
+                    <h3
+                        style="margin-bottom:1rem; border-bottom:var(--border-width) solid #000; padding-bottom:0.5rem;">
                         Recommended Jobs
                     </h3>
                     <p style="color:var(--text-muted); margin-bottom:1rem;">Open roles matching your profile.</p>
@@ -135,6 +218,7 @@
 
     </div>
 
-    <script src="/static/candidate.js"></script>
+    <script src="/static/candidate.js?v=9"></script>
 </body>
+
 </html>

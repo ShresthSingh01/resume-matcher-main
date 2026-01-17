@@ -22,11 +22,11 @@ A "3/5" in Experience matters more for a Senior dev than an Intern. We apply pur
 
 | Parameter | 🎓 Intern/Fresher | 👨‍💻 Junior/Mid | 🚀 Senior/Lead |
 | :--- | :---: | :---: | :---: |
-| **Education** | **25%** | 15% | 5% |
-| **Experience** | 10% | **25%** | **40%** |
-| **Skills** | **30%** | **30%** | 35% |
-| **Projects** | **25%** | 20% | 15% |
-| **Certs** | 10% | 10% | 5% |
+| **Education** | **35%** | 20% | 10% |
+| **Experience** | 5% | **25%** | **45%** |
+| **Skills** | **25%** | **30%** | 30% |
+| **Projects** | **25%** | 15% | 5% |
+| **Certs** | 10% | 10% | 10% |
 
 **Resume Score Calculation**:
 `Resume Score = (Sum(Parameter Score × Weight)) × 20` _(Normalized to 0-100)_

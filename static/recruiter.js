@@ -87,30 +87,49 @@ function renderLeaderboard(candidates) {
         if (statusText === 'Completed') {
             actionBtn = `<button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem;">View Report</button>`;
         } else {
-            // Pending / Shortlisted / Rejected / Waitlist
+
+            // Pending / Shortlisted / Rejected / Waitlist / Invited / ...
             let btnLabel = 'Invite';
             let btnClass = 'btn-primary';
             let confirmMsg = 'Send interview invitation?';
+            let isDisabled = false;
 
-            if (c.status === 'Shortlisted') {
+            // Normalize for comparison
+            const s = (c.status || '').trim().toLowerCase();
+
+            if (s.includes('shortlisted')) {
                 btnLabel = 'Next Round';
-                btnClass = 'btn-success'; // Need to ensure css exists or use style
+                btnClass = 'btn-success';
                 confirmMsg = 'Send Next Round Hiring email?';
-            } else if (c.status === 'Rejected') {
+            } else if (s.includes('shortlist') && s.includes('sent')) {
+                btnLabel = 'Next Round Sent';
+                btnClass = 'btn-success';
+                isDisabled = true;
+            } else if (s === 'rejected' || (s.includes('reject') && !s.includes('sent'))) {
                 btnLabel = 'Send Rejection';
-                btnClass = 'btn-danger'; // Need to ensure css exists or use style
+                btnClass = 'btn-danger';
                 confirmMsg = 'Send Rejection email?';
+            } else if (s.includes('reject') && s.includes('sent')) {
+                btnLabel = 'Rejection Sent';
+                btnClass = 'btn-danger';
+                isDisabled = true;
+            } else if (s.includes('invited') || s.includes('invite sent')) {
+                btnLabel = 'Invite Sent';
+                btnClass = 'btn-secondary';
+                isDisabled = true;
             } else {
                 // Waitlist or Matched
                 btnLabel = 'Invite to Interview';
                 confirmMsg = 'Send AI Interview Invitation?';
             }
 
+            const buttonHtml = isDisabled
+                ? `<button class="btn ${btnClass}" disabled style="padding:0.5rem 1rem; font-size:0.8rem; opacity:0.6; cursor:not-allowed;">${btnLabel}</button>`
+                : `<button class="btn ${btnClass}" onclick="initiateInterviewFromId('${c.id}', '${confirmMsg}', this)" style="padding:0.5rem 1rem; font-size:0.8rem; background-color: ${btnClass === 'btn-danger' ? 'var(--error)' : (btnClass === 'btn-success' ? 'var(--success)' : '')}; color:white;">${btnLabel}</button>`;
+
             actionBtn = `
             <button class="btn btn-secondary" onclick="showCandidateDetails(${index})" style="padding:0.5rem 1rem; font-size:0.8rem; margin-right:0.5rem;">View</button>
-            <button class="btn ${btnClass}" onclick="initiateInterviewFromId('${c.id}', '${confirmMsg}')" style="padding:0.5rem 1rem; font-size:0.8rem; background-color: ${btnClass === 'btn-danger' ? 'var(--error)' : (btnClass === 'btn-success' ? 'var(--success)' : '')}; color:white;">
-                ${btnLabel}
-            </button>`;
+            ${buttonHtml}`;
         }
 
         tr.innerHTML = `
@@ -127,19 +146,37 @@ function renderLeaderboard(candidates) {
     });
 }
 
-async function initiateInterviewFromId(candidateId, confirmMsg = "Send invitation?") {
+async function initiateInterviewFromId(candidateId, confirmMsg = "Send invitation?", btnElement) {
     if (!confirm(confirmMsg)) return;
+
+    // Optimistic UI update
+    const originalText = btnElement.innerText;
+    btnElement.disabled = true;
+    btnElement.innerText = "Sending...";
+    btnElement.style.opacity = "0.7";
 
     try {
         const res = await fetch(`/invite/candidate/${candidateId}`, { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
             alert(data.message);
+            // Persistent success state
+            if (originalText.includes("Next Round")) btnElement.innerText = "Next Round Sent";
+            else if (originalText.includes("Rejection")) btnElement.innerText = "Rejection Sent";
+            else btnElement.innerText = "Invite Sent";
         } else {
             alert("Error sending email: " + (data.detail || "Unknown error"));
+            // Revert on error
+            btnElement.disabled = false;
+            btnElement.innerText = originalText;
+            btnElement.style.opacity = "1";
         }
     } catch (e) {
         alert("Failed to send invite: " + e);
+        // Revert on error
+        btnElement.disabled = false;
+        btnElement.innerText = originalText;
+        btnElement.style.opacity = "1";
     }
 }
 

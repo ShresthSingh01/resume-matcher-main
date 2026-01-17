@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from app.db import init_db, add_candidate, get_leaderboard, get_candidate, update_candidate_interview, clear_db
+from app.db import init_db, add_candidate, get_leaderboard, get_candidate, update_candidate_interview, clear_db, update_candidate_status
 from app.schemas import StartInterviewRequest, InterviewAnswerRequest, InterviewResultRequest
 from app.resume_parser import parse_resume, extract_email
 from app.embeddings import check_duplicate, load_initial_embeddings
@@ -384,13 +384,16 @@ async def invite_candidate(cid: str, background_tasks: BackgroundTasks):
     
     if status == 'Shortlisted':
         background_tasks.add_task(send_shortlist_email, email, candidate['name'])
+        update_candidate_status(cid, "Shortlist Sent")
         msg = "Shortlist 'Next Round' email queued."
     elif status == 'Rejected':
         background_tasks.add_task(send_rejection_email, email, candidate['name'])
+        update_candidate_status(cid, "Reject Sent")
         msg = "Rejection email queued."
     else:
         # Waitlist or Default -> Send AI Interview Invite
         background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)
+        update_candidate_status(cid, "Invited")
         msg = "Interview invitation queued (Waitlist/Standard)."
 
     return {"message": msg}

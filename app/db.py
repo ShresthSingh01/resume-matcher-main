@@ -118,6 +118,13 @@ def update_candidate_interview(cid: str, interview_score: float, final_score: fl
     conn.close()
     return True
 
+def update_candidate_status(cid: str, status: str):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("UPDATE candidates SET status = ? WHERE id = ?", (status, cid))
+    conn.commit()
+    conn.close()
+
 # --- New Session Functions ---
 
 def save_session_db(session_id: str, candidate_id: str, role: str, is_active: bool = True):

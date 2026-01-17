@@ -16,7 +16,7 @@ class TTSManager:
             print("Warning: ELEVENLABS_API_KEY not found. TTS will not work.")
 
     def correct_pronunciation(self, text: str) -> str:
-     corrections = {
+        corrections = {
         # Core Programming & CS
         "SQL": "Sequel",
         "NoSQL": "No Sequel",
@@ -124,12 +124,12 @@ class TTSManager:
         "YAML": "Yam-ul",
         "Parquet": "Par-kay",
         "Avro": "Av-ro"
-    }
+        }
 
-    for term, replacement in corrections.items():
-        text = text.replace(term, replacement)
+        for term, replacement in corrections.items():
+            text = text.replace(term, replacement)
 
-    return text
+        return text
    
 
     def get_best_voice(self):

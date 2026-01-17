@@ -32,41 +32,42 @@ def get_role_template(role_name: str) -> tuple[dict, dict]:
 def _intern_template():
     return ({
         "parameters": {
-            "education": 0.25,
-            "experience": 0.10,
-            "skills": 0.30,
-            "projects": 0.25,
-            "certifications": 0.10
+            "education": 0.35,        # GPA, degree relevance, college prestige
+            "experience": 0.05,       # Internships only
+            "skills": 0.25,           # Programming languages, tools
+            "projects": 0.25,         # Personal, academic, or open-source
+            "certifications": 0.10    # Online courses, tech certifications
         }
     }, {
-        "shortlist": 70,
-        "interview": 45
+        "shortlist": 65,           # 65%
+        "interview": 40            # 40%
     })
 
 def _senior_template():
     return ({
         "parameters": {
-             "education": 0.05,
-             "experience": 0.40,
-             "skills": 0.35,
-             "projects": 0.15,
-             "certifications": 0.05
+            "education": 0.10,        # Bare minimum needed
+            "experience": 0.45,       # Depth and domain alignment
+            "skills": 0.30,           # Mastery over core + peripheral tools
+            "projects": 0.05,         # Leadership of major projects, not side ones
+            "certifications": 0.10    # Role-specific or regulatory (e.g. AWS Pro)
         }
     }, {
         "shortlist": 80,
         "interview": 60
     })
 
+
 def _junior_template():
     return ({
         "parameters": {
-            "education": 0.15,
-            "experience": 0.25,
-            "skills": 0.30,
-            "projects": 0.20,
-            "certifications": 0.10
+            "education": 0.20,        # Still valued, but less than skills/exp
+            "experience": 0.25,       # Full-time role exposure matters
+            "skills": 0.30,           # Stack match is critical
+            "projects": 0.15,         # Personal/side projects still relevant
+            "certifications": 0.10    # Helpful but not critical
         }
     }, {
-        "shortlist": 75,
+        "shortlist": 70,
         "interview": 50
     })

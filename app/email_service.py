@@ -38,19 +38,16 @@ def send_interview_invite(candidate_email: str, candidate_name: str, candidate_i
     WAITLIST / INTERVIEW: Sends AI Interview Invite.
     """
     interview_link = f"{BASE_URL}/interview/start?candidate_id={candidate_id}"
-    subject = "Update on your application: Invitation to AI Interview"
+    subject = "Next Step in Your Application Process: Invitation to AI Interview"
     body = f"""
     Hi {candidate_name},
-
-    Thank you for your application. Based on our initial review, we have placed you on our Waitlist for the role.
-    
-    To help us assess your fit further, we explicitly invite you to take a preliminary AI-conducted interview.
-    
-    Please click the link below to start:
+    Thank you for applying to Virex and for the time you’ve invested in your application.
+    Based on our initial review, we’d like to continue learning more about your profile. As part of the next step, we invite you to complete a short AI-assisted interview that will help us better understand your skills and experience.
+    You can begin the interview at a time that’s convenient for you using the link below:
     {interview_link}
-
+    We appreciate your interest in Virex and look forward to reviewing your responses.
     Best regards,
-    The Hiring Team
+    The Hiring Team Virex
     """
     _send_email(candidate_email, subject, body)
 
@@ -61,16 +58,12 @@ def send_shortlist_email(candidate_email: str, candidate_name: str):
     subject = "Congratulations! You are Shortlisted for the Next Round"
     body = f"""
     Hi {candidate_name},
-
-    We are pleased to inform you that your resume has been Shortlisted for the position!
-    
-    Your profile stood out among the applicants, and we would like to move you to the next round of our hiring process.
-    Our HR team will reach out to you shortly to schedule a 1-on-1 discussion.
-
-    Congratulations again!
-    
+    Thank you for your interest in joining Virex and for taking the time to apply.
+    We’re happy to let you know that your profile has been reviewed and selected to move forward to the next stage of our hiring process. Your experience and background stood out, and we’d like to learn more about you.
+    Our HR team will reach out to you shortly to schedule a one-on-one conversation and share further details.
+    We look forward to connecting with you.
     Best regards,
-    The Hiring Team
+    The Hiring Team Virex 
     """
     _send_email(candidate_email, subject, body)
 
@@ -81,13 +74,10 @@ def send_rejection_email(candidate_email: str, candidate_name: str):
     subject = "Update on your application"
     body = f"""
     Hi {candidate_name},
-
-    Thank you for your interest in our company and for taking the time to apply.
-    
-    After carefully reviewing your application, we regret to inform you that we will not be moving forward with your candidacy at this time.
-    We appreciate your effort and wish you the best of luck in your job search.
-
-    Best regards,
-    The Hiring Team
+    Thank you for taking the time to apply to Virex and for your interest in joining our team.
+    After careful review, we’ve decided to proceed with other candidates for this role at this time. This decision was not easy, and we truly appreciate the effort and thought you put into your application.
+    We were glad to learn more about your background, and we encourage you to stay connected with us and apply again in the future as new opportunities arise. We wish you all the best in your continued journey.
+    Warm regards,
+    The Hiring Team Virex
     """
     _send_email(candidate_email, subject, body)

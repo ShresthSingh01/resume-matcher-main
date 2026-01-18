@@ -156,16 +156,50 @@
                 <div id="error-msg" class="error-msg">
                     <ion-icon name="alert-circle-outline"></ion-icon> Invalid Credentials
                 </div>
+                
+                <div style="margin-top: 1.5rem; font-size: 0.9rem;">
+                    <span id="toggle-text">New Recruiter?</span> 
+                    <a href="#" id="toggle-mode" style="color: var(--primary); font-weight: bold;">Create Account</a>
+                </div>
             </form>
         </div>
 
         <div style="margin-top: 2rem; opacity: 0.5; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
-            SECURE ACCESS CHECKPOINT v2.1
+            SECURE ACCESS CHECKPOINT v2.2
         </div>
 
     </div>
 
     <script>
+        const toggleBtn = document.getElementById('toggle-mode');
+        const toggleText = document.getElementById('toggle-text');
+        const submitBtn = document.querySelector('.btn-login');
+        const formTitle = document.querySelector('.subtitle');
+        const sash = document.querySelector('.sash');
+        
+        let isRegister = false;
+
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            isRegister = !isRegister;
+            
+            if (isRegister) {
+                formTitle.textContent = "New Recruiter Registration";
+                submitBtn.textContent = "Create Account";
+                toggleText.textContent = "Already have an account?";
+                toggleBtn.textContent = "Login";
+                sash.textContent = "NEW USER";
+                sash.style.background = "#28a745"; // Success green
+            } else {
+                formTitle.textContent = "Recruitment Command Center";
+                submitBtn.textContent = "Access System";
+                toggleText.textContent = "New Recruiter?";
+                toggleBtn.textContent = "Create Account";
+                sash.textContent = "ADMIN";
+                sash.style.background = "var(--accent)";
+            }
+        });
+
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
@@ -174,28 +208,47 @@
             const btn = document.querySelector('.btn-login');
 
             // Visual Processing State
-            btn.innerHTML = 'Verifying...';
+            btn.innerHTML = isRegister ? 'Creating...' : 'Verifying...';
             btn.style.opacity = '0.8';
+
+            const endpoint = isRegister ? '/register' : '/login';
 
             try {
                 const formData = new FormData();
                 formData.append("username", username);
                 formData.append("password", password);
 
-                const res = await fetch('/login', {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
+                
+                const data = await res.json().catch(() => ({}));
 
                 if (res.ok) {
-                    btn.innerHTML = 'Authorized <ion-icon name="checkmark-circle"></ion-icon>';
+                    btn.innerHTML = isRegister ? 'Created! Login Now' : 'Authorized <ion-icon name="checkmark-circle"></ion-icon>';
                     btn.style.background = 'var(--success)';
-                    setTimeout(() => window.location.href = '/', 500);
+                    
+                    if (isRegister) {
+                        // After register, switch to login or auto-login?
+                        // For now, let's just alert success and switch to login UI or auto-login.
+                        // Actually, UX is better if we just say Success.
+                        setTimeout(() => {
+                            isRegister = false;
+                            toggleBtn.click(); // Switch back to login view
+                            alert("Account created! Please log in.");
+                            btn.style.background = 'var(--primary)';
+                        }, 1000);
+                    } else {
+                        setTimeout(() => window.location.href = '/', 500);
+                    }
                 } else {
-                    btn.innerHTML = 'Access System';
+                    btn.innerHTML = isRegister ? 'Create Account' : 'Access System';
                     btn.style.opacity = '1';
                     btn.style.background = 'var(--primary)';
                     errorMsg.style.display = 'block';
+                    errorMsg.innerHTML = `<ion-icon name="alert-circle-outline"></ion-icon> ${data.detail || "Authentication Failed"}`;
+                    
                     // Shake animation
                     document.querySelector('.login-card').animate([
                         { transform: 'translateX(0)' },
@@ -206,7 +259,7 @@
                 }
             } catch (err) {
                 console.error(err);
-                btn.innerHTML = 'Access System';
+                btn.innerHTML = isRegister ? 'Create Account' : 'Access System';
                 errorMsg.style.display = 'block';
                 errorMsg.textContent = "Connection Error";
             }

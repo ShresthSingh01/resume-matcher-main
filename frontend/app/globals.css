@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+/* 
+  Professional Dark Theme
+  A clean, classic, and high-contrast dark theme suitable for enterprise dashboards.
+  Focus on usability, readability, and subtle elegance.
+*/
+
+:root {
+  /* --- Color Palette (Slate / Professional) --- */
+
+  /* Backgrounds */
+  --bg-primary: #0f172a;
+  /* Slate 900: Main background */
+  --bg-secondary: #1e293b;
+  /* Slate 800: Cards, Sidebar */
+  --bg-tertiary: #334155;
+  /* Slate 700: Inputs, Hover states */
+
+  /* Typography */
+  --text-main: #f8fafc;
+  /* Slate 50: Primary headings */
+  --text-secondary: #cbd5e1;
+  /* Slate 300: Body text */
+  --text-muted: #94a3b8;
+  /* Slate 400: Meta data */
+
+  /* Borders & Dividers */
+  --border-color: #334155;
+  /* Slate 700 */
+  --glass-border: #334155;
+  /* Mapped for backward compatibility */
+
+  /* Brand Accents - Soft Royal Blue */
+  --accent-primary: #3b82f6;
+  /* Blue 500 */
+  --accent-secondary: #6366f1;
+  /* Indigo 500 */
+  --accent-gradient: linear-gradient(to right, #3b82f6, #2563eb);
+  /* Subtle blue gradient */
+
+  /* Status Indicators */
+  --success: #10b981;
+  /* Emerald 500 */
+  --error: #ef4444;
+  /* Red 500 */
+  --warning: #f59e0b;
+  /* Amber 500 */
+
+  /* Legacy/Compat mappings */
+  --glass-bg: var(--bg-secondary);
+  --mesh-orb-1: transparent;
+  /* Disable distracting glow */
+}
+
+body {
+  @apply font-sans min-h-screen antialiased text-sm;
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  /* Removed Aurora Animation */
+}
+
+/* --- Components --- */
+
+/* Professional Card (formerly glass-card) */
+@utility glass-card {
+  @apply rounded-lg border p-6 transition-all duration-200;
+  background-color: var(--bg-secondary);
+  border-color: var(--border-color);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+
+  &:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Remove Neon Glows */
+@utility neon-border {
+  @apply border;
+  border-color: var(--border-color);
+
+  &:hover {
+    border-color: var(--accent-primary);
+  }
+}
+
+/* Typography Utilities */
+@utility text-glow {
+  @apply text-blue-400 font-medium;
+  /* Removed background-clip for better readability */
+  background: none;
+  -webkit-text-fill-color: inherit;
+}
+
+/* --- Buttons --- */
+
+.btn {
+  @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none disabled:opacity-50 disabled:pointer-events-none;
+  height: 2.5rem;
+  /* Standard height */
+}
+
+.btn-primary {
+  @apply bg-blue-600 text-white shadow-sm hover:bg-blue-700;
+  border: 1px solid transparent;
+  background-image: none;
+  /* Remove gradient */
+}
+
+.btn-secondary {
+  @apply bg-transparent text-slate-200 border border-slate-700 shadow-sm hover:bg-slate-800 hover:text-white;
+  backdrop-filter: none;
+}
+
+/* Input Fields (Global Override) */
+input,
+textarea,
+select {
+  @apply bg-slate-900 border border-slate-700 text-slate-100 rounded-md px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all;
+}
+
+/* Table Styles */
+table {
+  @apply w-full caption-bottom text-sm;
+}
+
+thead {
+  @apply [&_tr]:border-b;
+}
+
+tbody tr {
+  @apply border-b border-slate-800 transition-colors hover:bg-slate-800/50;
+}
+
+th {
+  @apply h-12 px-4 text-left align-middle font-medium text-slate-400;
+}
+
+td {
+  @apply p-4 align-middle;
+}

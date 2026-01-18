@@ -19,3 +19,6 @@ opencv-python-headless
 pyttsx3
 pdfplumber
 pydantic
+psycopg2-binary
+redis
+sentry-sdk[fastapi]

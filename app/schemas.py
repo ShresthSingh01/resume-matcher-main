@@ -37,6 +37,10 @@ class InterviewAnswerRequest(BaseModel):
 class InterviewResultRequest(BaseModel):
     session_id: str
 
+class FlagRequest(BaseModel):
+    session_id: str
+    reason: str
+
 class InterviewMessage(BaseModel):
     role: str  # "system", "user", "assistant"
     content: str

@@ -1,36 +1,32 @@
 import uuid
-from typing import Dict, List, Optional
+from typing import Optional
 from langchain_core.prompts import PromptTemplate
 from app.schemas import InterviewSession, QuestionScore, InterviewMessage
 from app.grading import grade_answer
 from app.llm import get_llm
 from app.interview_prompts import INTERVIEW_SYSTEM_PROMPT
-from app.llm_utils import safe_invoke
+from app.core.redis import redis_client
 from app.db import (
     save_session_db, get_session_db, update_session_db, log_message_db, 
     get_candidate, get_session_messages, update_candidate_interview
 )
 import json
+from loguru import logger
 
 class InterviewManager:
     def __init__(self):
-        # State is now in DB
         self.llm = get_llm(temperature=0.7, max_tokens=600)
 
     def deduce_role(self, jd_text: str) -> str:
-        """
-        Extracts the role from JD using LLM.
-        """
         try:
              from app.interview_prompts import ROLE_DEDUCTION_PROMPT
              chain = ROLE_DEDUCTION_PROMPT | self.llm
              res = chain.invoke({"job_description": jd_text})
              role = res.content.strip()
-             # Basic cleanup if LLM adds quotes
              role = role.replace('"', '').replace("'", "")
              return role
         except Exception as e:
-            print(f"⚠️ Role Deduction Failed: {e}")
+            logger.warning(f"⚠️ Role Deduction Failed: {e}")
             return "Candidate"
 
     def create_session(
@@ -42,36 +38,25 @@ class InterviewManager:
     ) -> InterviewSession:
         sid = str(uuid.uuid4())
         
-        # 1. Resolve from DB if ID provided
+        # Resolve from DB if ID provided
         if candidate_id:
             db_candidate = get_candidate(candidate_id)
             if db_candidate:
                 resume_text = db_candidate['resume_text']
                 jd = db_candidate['job_description']
                 match_score = db_candidate['match_score']
-            else:
-                # Fallback or error? For now proceed if texts are passed
-                if not resume_text:
-                    raise ValueError("Candidate not found and no resume text provided.")
 
-        # Legacy fallback if resume_text looks like UUID (Backwards compat logic removal/cleanup?)
-        # Keeping it safe: if candidate_id was NOT passed but resume_text IS 36 chars, treat as ID
+        # Legacy/Fallback Logic
         if not candidate_id and resume_text and len(resume_text) == 36:
-            candidate_id = resume_text
-            db_candidate = get_candidate(candidate_id)
-            if db_candidate:
+             candidate_id = resume_text
+             db_candidate = get_candidate(candidate_id)
+             if db_candidate:
                  resume_text = db_candidate['resume_text']
                  jd = db_candidate['job_description']
                  match_score = db_candidate['match_score']
 
-        if not resume_text or not jd:
-             # Just ensures we don't crash, but deduction might fail
-             pass
-
-        # Deduce Role
         role = self.deduce_role(jd if jd else "")
 
-        # Create session object
         session = InterviewSession(
             session_id=sid,
             resume_text=resume_text or "",
@@ -81,28 +66,32 @@ class InterviewManager:
             detected_role=role
         )
         
-        # Save to DB
+        # 1. Save to Redis (Hot State)
+        redis_client.set_session(sid, session.dict())
+        
+        # 2. Save to DB (Persistence)
         save_session_db(sid, session.candidate_id, session.detected_role, True)
         
         return session
 
     def get_session(self, session_id: str) -> Optional[InterviewSession]:
+        # 1. Try Redis
+        data = redis_client.get_session(session_id)
+        if data:
+            return InterviewSession(**data)
+        
+        # 2. Fallback to DB
         row = get_session_db(session_id)
         if not row:
             return None
         
-        # Rehydrate session
+        # Rehydrate from DB
         cid = row['candidate_id']
         candidate = get_candidate(cid)
         
-        resume_text = ""
-        jd = ""
-        match_score = 0.0
-        
-        if candidate:
-             resume_text = candidate['resume_text']
-             jd = candidate['job_description']
-             match_score = candidate['match_score']
+        resume_text = candidate['resume_text'] if candidate else ""
+        jd = candidate['job_description'] if candidate else ""
+        match_score = candidate['match_score'] if candidate else 0.0
         
         session = InterviewSession(
             session_id=row['session_id'],
@@ -114,19 +103,20 @@ class InterviewManager:
             candidate_id=cid
         )
         
-        # Load messages
+        # Load messages & scores
         msgs = get_session_messages(session_id)
         for m in msgs:
             session.messages.append(InterviewMessage(role=m['role'], content=m['content']))
             
-        # Load scores
-        session.question_scores = []
         if row['scores']:
             scores_data = json.loads(row['scores'])
             for s in scores_data:
                 session.question_scores.append(QuestionScore(**s))
             
         session.current_question = row['current_question']
+        
+        # Populate Cache
+        redis_client.set_session(session_id, session.dict())
         
         return session
 
@@ -135,7 +125,6 @@ class InterviewManager:
         if not session:
             return "Error: Session not found."
             
-        # Initial Question Generation
         try:
             prompt = PromptTemplate(
                 input_variables=["resume_text", "job_description", "match_score", "role", "history", "last_score"],
@@ -147,18 +136,22 @@ class InterviewManager:
                 "resume_text": session.resume_text,
                 "job_description": session.job_description,
                 "match_score": session.initial_match_score,
-                "history": "No history yet (Start of interview).",
+                "history": "No history yet.",
                 "last_score": "None"
             })
             question = res.content.strip()
         except Exception as e:
-            print(f"⚠️ Interview Start Error: {e}")
-            question = "Could you please introduce yourself and your background?"
+            logger.error(f"Interview Start Error: {e}")
+            question = "Could you please introduce yourself?"
 
-        # DB Update
+        # Update State
+        session.current_question = question
+        session.messages.append(InterviewMessage(role="assistant", content=question))
+
+        # Sync
+        redis_client.set_session(session_id, session.dict())
         log_message_db(session_id, "assistant", question)
-        scores_json = [s.dict() for s in session.question_scores]
-        update_session_db(session_id, question, scores_json, True)
+        update_session_db(session_id, question, [s.dict() for s in session.question_scores], True)
         
         return question
 
@@ -169,10 +162,11 @@ class InterviewManager:
             
         current_q = session.current_question
         
-        # Log User Answer
+        # Log Answer
+        session.messages.append(InterviewMessage(role="user", content=answer))
         log_message_db(session_id, "user", answer)
         
-        # 1. Grade Answer
+        # Grade
         grade_data = grade_answer(current_q, answer)
         score = grade_data['score']
         
@@ -187,30 +181,20 @@ class InterviewManager:
         )
         session.question_scores.append(new_score)
         
-        # 2. Check Termination (e.g., 5 questions)
-        scores_json = [s.dict() for s in session.question_scores]
+        # Check Termination
         if len(session.question_scores) >= 5:
-            update_session_db(session_id, current_q, scores_json, False)
+            redis_client.delete_session(session_id) # Optional: Clear cache on finish
+            update_session_db(session_id, current_q, [s.dict() for s in session.question_scores], False)
             return "Interview Complete.", True, grade_data['feedback'], score
 
-        # 3. Generate Next Question
+        # Next Question
         try:
-            # Build History
             history_str = ""
-            # session.messages is populated in get_session
-            # We want to show the recent exchange
             for msg in session.messages:
+                # Include local history including the just-added answer
                 role_label = "Interviewer" if msg.role == "assistant" else "Candidate"
                 history_str += f"{role_label}: {msg.content}\n"
             
-            # The session.messages list includes the LAST question (assistant) because it was saved 
-            # in the previous turn (start_interview or process_answer).
-            # It DOES NOT include the current 'answer' (user) because we just logged it 
-            # but haven't re-fetched or appended it to the local session object.
-            
-            # So we only need to append the Candidate's answer to the history passed to LLM.
-            history_str += f"Candidate: {answer}\n"
-
             prompt = PromptTemplate(
                 input_variables=["resume_text", "job_description", "match_score", "role", "history", "last_score"],
                 template=INTERVIEW_SYSTEM_PROMPT
@@ -225,48 +209,38 @@ class InterviewManager:
                 "last_score": str(score)
             })
             next_q = res.content.strip()
-        except Exception as e:
-             import traceback
-             print(f"⚠️ QP Error: {e}")
-             traceback.print_exc()
-             # Improved fallback to avoid loops
+        except Exception:
+             # Simple fallback
              import random
-             fallbacks = [
-                 "That's interesting. Can you tell me about a challenging project you've worked on?",
-                 "How do you handle tight deadlines?",
-                 "Do you have any experience with cloud technologies?",
-                 "What would you say is your biggest technical achievement?"
-             ]
-             next_q = random.choice(fallbacks)
+             next_q = random.choice([
+                 "Tell me about a challenging project?",
+                 "How do you handle deadlines?"
+             ])
 
-        # Log & Update
+        # Update Session
+        session.current_question = next_q
+        session.messages.append(InterviewMessage(role="assistant", content=next_q))
+        
+        # Sync
+        redis_client.set_session(session_id, session.dict())
         log_message_db(session_id, "assistant", next_q)
-        update_session_db(session_id, next_q, scores_json, True)
+        update_session_db(session_id, next_q, [s.dict() for s in session.question_scores], True)
         
         return next_q, False, grade_data['feedback'], score
 
     def calculate_final_result(self, session_id: str) -> dict:
-        session = self.get_session(session_id)
+        # Try DB source of truth for final result
+        session = self.get_session(session_id) 
         if not session:
             return None
             
         scores = [q.score for q in session.question_scores]
         avg_interview_score = sum(scores) / len(scores) if scores else 0
-        
-        # Weighted Score Calculation
-        # Resume: 40% (Background)
-        # Interview: 60% (Performance - Higher weight to give Waitlisted candidates a chance)
         match_part = session.initial_match_score * 0.4
         interview_part = (avg_interview_score * 10) * 0.6
         final_score = match_part + interview_part
         
-        # Determine Final Status
-        # Threshold: 70/100 to be upgrades to Shortlisted
-        new_status = "Interviewed" # Default state (completed but not necessarily shortlisted)
-        if final_score >= 70:
-            new_status = "Shortlisted"
-        else:
-            new_status = "Rejected"
+        new_status = "Shortlisted" if final_score >= 70 else "Rejected"
 
         if session.candidate_id and session.candidate_id != "unknown":
              update_candidate_interview(
@@ -285,12 +259,10 @@ class InterviewManager:
             "resume_score": session.initial_match_score,
             "interview_score": round(avg_interview_score * 10, 2),
             "final_score": round(final_score, 2),
-            "total_questions": len(scores),
             "transcript": [
-                {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
+                {"q": q.question, "a": q.answer, "score": q.score}
                 for q in session.question_scores
             ]
         }
 
-# Singleton instance
 interview_manager = InterviewManager()

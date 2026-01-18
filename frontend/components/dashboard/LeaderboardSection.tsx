@@ -1,0 +1,153 @@
+"use client";
+
+import { useState } from "react";
+import { Candidate } from "@/hooks/useDashboard";
+import { IoListOutline, IoTrashOutline, IoRefreshOutline, IoMailOutline } from "react-icons/io5";
+
+interface LeaderboardSectionProps {
+    candidates: Candidate[];
+    onView: (c: Candidate) => void;
+    onInvite: (id: string, action: "reject" | "shortlist" | "invite") => void;
+    onClear: () => void;
+    onRefresh: () => void; // Usually just sets view to upload or re-fetches
+}
+
+export default function LeaderboardSection({ candidates, onView, onInvite, onClear, onRefresh }: LeaderboardSectionProps) {
+
+
+    const getStatusColor = (status: string) => {
+        const s = (status || "").toLowerCase();
+        if (s.includes("completed") || s.includes("interviewed")) return "text-[var(--success)]";
+        if (s.includes("shortlist")) return "text-green-600 font-bold";
+        if (s.includes("reject")) return "text-[var(--error)]";
+        if (s.includes("waitlist")) return "text-orange-500";
+        return "text-gray-500";
+    };
+
+    const handleAction = (id: string) => {
+        // Send 'invite' as generic action; backend decides based on status
+        onInvite(id, "invite");
+    };
+
+    const getActionBtn = (c: Candidate) => {
+        const s = (c.status || "").toLowerCase();
+
+        // If action already taken (email sent), show disabled state
+        if (s.includes("sent") || s.includes("invited")) {
+            let label = "Invited";
+            if (s.includes("reject")) label = "Rejection Sent";
+            else if (s.includes("shortlist")) label = "Next Round Sent";
+
+            return (
+                <div className="flex gap-2">
+                    <button onClick={() => onView(c)} className="btn btn-secondary text-xs py-1 px-2">View</button>
+                    <button disabled className="btn btn-secondary opacity-50 text-xs py-1 px-3 cursor-not-allowed">
+                        {label}
+                    </button>
+                </div>
+            );
+        }
+
+        // Available Actions for Pending/Reviewed/Decided but not sent
+        let actionLabel = "Invite";
+        let btnClass = "btn btn-primary text-xs py-1 px-4 flex items-center gap-2";
+
+        if (s.includes("reject")) {
+            actionLabel = "Rejection";
+            btnClass = "btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-red-500 shadow-sm";
+        } else if (s.includes("shortlist") || s.includes("completed")) {
+            actionLabel = "Next Round";
+            btnClass = "btn bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-emerald-500 shadow-sm";
+        }
+
+        return (
+            <div className="flex gap-1 items-center">
+                <button onClick={() => onView(c)} className="btn btn-secondary text-xs py-1 px-2" title="View Details">View</button>
+
+                <button
+                    onClick={() => handleAction(c.id)}
+                    className={btnClass}
+                    title={`Send email based on status: ${c.status}`}
+                >
+                    <IoMailOutline /> {actionLabel}
+                </button>
+            </div>
+        );
+    };
+
+    return (
+        <div className="mx-auto w-full max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="glass-card min-h-[500px] p-0 overflow-hidden">
+                <div className="p-6 border-b border-[var(--border-color)] flex flex-col items-start justify-between gap-4 md:flex-row md:items-center bg-[var(--bg-secondary)]">
+                    <div>
+                        <h2 className="flex items-center gap-3 text-2xl font-bold tracking-tight text-[var(--text-main)]">
+                            <IoListOutline className="text-blue-500" /> Candidate Leaderboard
+                        </h2>
+                        <p className="mt-1 font-normal text-sm text-[var(--text-secondary)]">Ranked by Resume Match & Interview Performance</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={onClear} className="btn bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all">
+                            <IoTrashOutline className="mr-2 inline" /> Clear
+                        </button>
+                        <button onClick={onRefresh} className="btn btn-secondary">
+                            <IoRefreshOutline className="mr-2 inline" /> Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div className="w-full overflow-x-auto">
+                    <table className="w-full min-w-[800px] text-left">
+                        <thead className="bg-slate-900/50 text-[var(--text-muted)] border-b border-[var(--border-color)]">
+                            <tr>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Rank</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Name</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Match Rating</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Interview</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-secondary)]">
+                            {candidates.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="p-16 text-center text-[var(--text-secondary)] font-light">
+                                        No candidates found.<br />Upload resumes to populate the leaderboard.
+                                    </td>
+                                </tr>
+                            ) : candidates.map((c, i) => (
+                                <tr key={c.id} className="group hover:bg-slate-800/80 transition-colors">
+                                    <td className="p-4 font-mono font-bold text-lg text-[var(--text-muted)] group-hover:text-blue-500 transition-colors">#{i + 1}</td>
+                                    <td className="p-4 font-medium text-[var(--text-main)]">{c.name || c.filename}</td>
+                                    <td className="p-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-1.5 w-24 rounded-full bg-slate-700 overflow-hidden">
+                                                <div
+                                                    className="h-full bg-blue-500"
+                                                    style={{ width: `${c.match_score}%` }}
+                                                />
+                                            </div>
+                                            <span className="font-mono text-sm text-[var(--text-secondary)]">{c.match_score.toFixed(0)}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-4 font-mono">
+                                        {c.interview_score > 0 ? (
+                                            <span className="font-bold text-emerald-500">{c.interview_score}/100</span>
+                                        ) : (
+                                            <span className="text-[var(--text-muted)]">-</span>
+                                        )}
+                                    </td>
+                                    <td className={`p-4 font-bold uppercase text-[10px] tracking-wider ${getStatusColor(c.status)}`}>
+                                        {c.status || "PENDING"}
+                                    </td>
+                                    <td className="p-4">
+                                        {getActionBtn(c)}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    );
+}

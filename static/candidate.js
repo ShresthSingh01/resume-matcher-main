@@ -49,11 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Ring 3: Webcam init
+                // Ring 3: Webcam init
                 try {
                     await initWebcam();
+                    // Initialize Audio Logic on User Gesture
+                    setupAudioContext();
+                    if (audioContext && audioContext.state === 'suspended') {
+                        await audioContext.resume();
+                    }
                 } catch (e) {
-                    console.error("Webcam init failed", e);
-                    alert("Camera access is required. Please allow access and reload.");
+                    console.error("Init failed", e);
+                    alert("Camera/Audio access required.");
                     return;
                 }
 
@@ -96,6 +102,15 @@ async function startInterview(candidateId) {
 
         if (!res.ok) {
             console.error("Backend Error:", data);
+
+            if (res.status === 403) {
+                addMessage('system', `<div style="color:red; font-weight:bold;">${data.detail}</div>`, true);
+                const startBtn = document.getElementById('start-btn');
+                if (startBtn) startBtn.disabled = true;
+                alert(data.detail);
+                return;
+            }
+
             addMessage('system', `Error: ${data.detail || data.error || "Unknown backend error"}`);
             return;
         }
@@ -404,8 +419,12 @@ function setupInterview() {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true; // Changed to true for better flow
+        recognition.interimResults = true; // Needed for silence detection logic
+        recognition.lang = 'en-US';
+
+        let silenceTimer = null;
+        const SILENCE_DELAY = 2500; // 2.5 seconds silence to trigger submit
 
         recognition.onstart = () => {
             isRecording = true;
@@ -414,19 +433,95 @@ function setupInterview() {
         };
 
         recognition.onend = () => {
+            // If we stopped manually (isRecording set to false in handleSend), that's fine.
+            // If browser stopped it but we think we are recording, we could restart, 
+            // BUT for this specific UX (one answer), it's better to just let it finish if the user stopped speaking.
+            // However, with continuous=true, it shouldn't stop unless silence timeout or error.
+            if (isRecording) {
+                // Determine if we should restart or just stop. 
+                // If the user hasn't said anything, maybe restart? 
+                // For now, let's treat end as "User finished" or "Silence timeout fired"
+            }
             isRecording = false;
             micBtn.classList.remove('recording');
             updateAvatarState('idle');
-            if (handsFreeMode && input.value.trim().length > 0) {
-                setTimeout(() => handleSend(), 500);
-            }
+
+            // Clear any pending silence timer
+            if (silenceTimer) clearTimeout(silenceTimer);
         };
 
         recognition.onresult = (event) => {
-            input.value = event.results[0][0].transcript;
+            let finalTranscript = '';
+            let interimTranscript = '';
+
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                } else {
+                    interimTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            // We append final to input, but we might want to just set it 
+            // depending on if we clear input on start. 
+            // Since we are continuous, we need to be careful not to duplicate text if we are just appending.
+            // Actually, with continuous, 'event.results' accumulates.
+            // So we can just grab the latest combined text.
+
+            // Simpler approach for single-turn answer:
+            // Just take the full transcript being built by the engine if possible, 
+            // but standard webkitSR with continuous returns a list.
+
+            // To avoid complexity: Join all final results.
+            let fullText = "";
+            for (let i = 0; i < event.results.length; ++i) {
+                fullText += event.results[i][0].transcript;
+            }
+
+            input.value = fullText;
+
+            // Silence Detection:
+            // Every time we get a result (speech detected), reset the timer.
+            if (silenceTimer) clearTimeout(silenceTimer);
+
+            if (input.value.trim().length > 0) {
+                silenceTimer = setTimeout(() => {
+                    console.log("Silence detected. Auto-submitting.");
+                    recognition.stop(); // This triggers onend
+                    handleSend();
+                }, SILENCE_DELAY);
+            }
         };
 
-        micBtn.onclick = () => { isRecording ? recognition.stop() : recognition.start(); };
+        // Error handling to prevent "complaints"
+        recognition.onerror = (event) => {
+            console.warn("Speech Recognition Error:", event.error);
+            if (event.error === 'no-speech') {
+                // Ignore
+            }
+            // For network/not-allowed, we should alert user
+            if (event.error === 'not-allowed') {
+                alert("Microphone access blocked.");
+                isRecording = false;
+            }
+        };
+
+        micBtn.onclick = () => {
+            if (isRecording) {
+                recognition.stop();
+                // Manually stopping implies "I'm done", so send?
+                // Or just stop recording? 
+                // "User uses mic after a small break it auto submits" -> Implies auto submit is the main way.
+                // If they click stop, they probably want to edit or send. 
+                // Let's just stop and NOT auto-send immediately, let them click send? 
+                // Or follow silence logic? 
+                // The silence timer handles the auto-send. Manual stop: just stop.
+                if (silenceTimer) clearTimeout(silenceTimer);
+            } else {
+                input.value = ""; // Clear for new answer
+                recognition.start();
+            }
+        };
     } else {
         micBtn.style.display = 'none';
     }
@@ -516,12 +611,36 @@ function visualizeAudio() {
 }
 
 async function speak(text) {
+    // Global safety fuse: If nothing works after 10s (or text length based), force timer.
+    const safetyFuseDelay = Math.max(3000, text.length * 100); // ~100ms per char
+    const safetyFuse = setTimeout(() => {
+        console.warn("Global TTS Safety Fuse triggered. Forcing timer.");
+        updateAvatarState('idle');
+        startTimer();
+    }, safetyFuseDelay + 2000);
+
+    let timerStarted = false;
+    const triggerTimer = () => {
+        if (timerStarted) return;
+        timerStarted = true;
+        clearTimeout(safetyFuse);
+        updateAvatarState('idle');
+        startTimer();
+    };
+
+    // Stop existing
+    try { synthesis.cancel(); } catch (e) { }
+    if (currentAudio) {
+        try { currentAudio.pause(); } catch (e) { }
+        currentAudio = null;
+    }
+
+    let backendSuccess = false;
+
     // 1. Backend TTS
     try {
         setupAudioContext();
-        if (audioContext.state === 'suspended') await audioContext.resume();
-        if (currentAudio) { currentAudio.pause(); currentAudio = null; }
-        synthesis.cancel();
+        if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
 
         const response = await fetch('/interview/speak', {
             method: 'POST',
@@ -529,30 +648,47 @@ async function speak(text) {
             body: JSON.stringify({ text })
         });
 
-        if (!response.ok) throw new Error("TTS Failed");
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            currentAudio = new Audio(url);
 
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        currentAudio = new Audio(url);
+            const source = audioContext.createMediaElementSource(currentAudio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
 
-        const source = audioContext.createMediaElementSource(currentAudio);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
+            currentAudio.onplay = () => { visualizeAudio(); updateAvatarState('speaking'); };
+            currentAudio.onended = () => { triggerTimer(); };
 
-        currentAudio.onplay = () => { visualizeAudio(); };
-        currentAudio.onended = () => { updateAvatarState('idle'); startTimer(); };
-        currentAudio.play();
-        return;
+            await currentAudio.play();
+            backendSuccess = true;
+        } else {
+            console.warn("Backend TTS response not OK:", response.status);
+        }
 
     } catch (e) {
-        console.warn("Falling back to browser TTS", e);
+        console.warn("Backend TTS failed. Trying browser fallback.", e);
     }
 
+    if (backendSuccess) return;
+
     // 2. Browser TTS Fallback
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.onstart = () => updateAvatarState('speaking');
-    utter.onend = () => { updateAvatarState('idle'); startTimer(); };
-    synthesis.speak(utter);
+    console.log("Using Browser TTS");
+    try {
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.onstart = () => updateAvatarState('speaking');
+        utter.onend = () => { triggerTimer(); };
+        utter.onerror = (e) => {
+            console.error("Browser TTS Error:", e);
+            triggerTimer();
+        };
+
+        synthesis.speak(utter);
+
+    } catch (err) {
+        console.error("Browser TTS fatal error:", err);
+        triggerTimer();
+    }
 }
 
 // ---------- Anti-Cheat Helpers ----------

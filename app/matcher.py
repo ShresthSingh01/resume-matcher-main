@@ -4,6 +4,7 @@ from app.llm import get_llm
 from app.interview_prompts import MATCHING_PROMPT, PROFILE_EXTRACTION_PROMPT, RESUME_EVALUATION_PROMPT, ROLE_DEDUCTION_PROMPT
 from app.schemas import CandidateProfile, ResumeEvaluationOutput
 import asyncio
+from loguru import logger
 
 def extract_skills(resume_text: str, jd_text: str) -> dict:
     """
@@ -23,7 +24,7 @@ def extract_skills(resume_text: str, jd_text: str) -> dict:
         })
         content = response.content.strip()
     except Exception as e:
-        print(f"⚠️ LLM Error: {e}. Switching to Regex Fallback.")
+        logger.warning(f"⚠️ LLM Error: {e}. Switching to Regex Fallback.")
         # Regex Fallback
         jd_words = set(re.findall(r'\b\w+\b', jd_text.lower()))
         resume_words = set(re.findall(r'\b\w+\b', resume_text.lower()))
@@ -141,7 +142,7 @@ def extract_skills(resume_text: str, jd_text: str) -> dict:
             "reasoning": data.get("reasoning", "Analysis completed.")
         }
     except json.JSONDecodeError:
-        print(f"❌ JSON Decode Error. Raw: {content}")
+        logger.error(f"❌ JSON Decode Error. Raw: {content}")
         # Fallback empty
         return {
             "matched_skills": [],
@@ -195,7 +196,7 @@ async def extract_skills_async(resume_text: str, jd_text: str) -> dict:
         })
         content = response.content.strip()
     except Exception as e:
-        print(f"⚠️ Async LLM Error: {e}. Switching to Regex Fallback.")
+        logger.warning(f"⚠️ Async LLM Error: {e}. Switching to Regex Fallback.")
         # Re-use sync fallback logic effectively or just call sync function wrapped
         # For simplicity, we just use the sync regex logic here or generic error
         return extract_skills(resume_text, jd_text) # Fallback to sync/regex if LLM fails
@@ -236,7 +237,7 @@ async def extract_skills_async(resume_text: str, jd_text: str) -> dict:
             "reasoning": data.get("reasoning", "Async Analysis completed.")
         }
     except Exception as e:
-        print(f"❌ Async JSON Error: {e}")
+        logger.error(f"❌ Async JSON Error: {e}")
         return {
             "matched_skills": [],
             "missing_skills": [],
@@ -258,7 +259,7 @@ async def extract_profile_async(resume_text: str) -> CandidateProfile:
         profile = await chain.ainvoke({"resume_text": resume_text})
         return profile
     except Exception as e:
-        print(f"❌ Profile Extraction Error: {e}")
+        logger.error(f"❌ Profile Extraction Error: {e}")
         return CandidateProfile(name="Extraction Failed", email="", phone="", skills=[])
 
 async def evaluate_resume_structured(
@@ -343,8 +344,23 @@ async def evaluate_resume_structured(
         return result
         
     except Exception as e:
-        print(f"❌ Evaluation Error: {e}")
-        # Return a fallback empty object or re-raise
+        logger.error(f"❌ Evaluation Error: {e}")
+        # Return fallback object to prevent crash
+        from app.schemas import ScoreComponents, ExtractedEvidence
+        
+        return ResumeEvaluationOutput(
+            likert_scores=ScoreComponents(education=3, experience=3, skills=3, projects=3, certifications=3),
+            weighted_resume_score=50.0,
+            decision="Review Required (AI Error)",
+            interview_required=False,
+            extracted_evidence=ExtractedEvidence(
+                education="Extraction Failed", 
+                experience=[], 
+                skills=[], 
+                projects=[], 
+                certifications=[]
+            )
+        )
 
 async def detect_job_role(jd_text: str) -> str:
     """

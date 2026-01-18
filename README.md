@@ -7,7 +7,8 @@
 ## 🌟 Key Features & Scoring Logic
 
 ### 1. 🔍 Structured "Virex" Resume Evaluation
-Unlike simple keyword matching, Virex uses a **Deterministic Weighted Scoring Engine**.
+Unlike simple keyword matching, Virex uses a **Deterministic Weighted Scoring Engine** enhanced by **Precision Skill Validation**.
+*   **Exact-Match Extraction**: The system uses strict regex boundaries to validate skills, ensuring no false positives (e.g., correctly distinguishing "Java" from "JavaScript" or "C" from "C++").
 
 #### **A. The Likert Scale (1-5)**
 Every parameter (Education, Experience, Skills, Projects, Certifications) is evaluated on a strict 1-5 scale:
@@ -32,10 +33,10 @@ A "3/5" in Experience matters more for a Senior dev than an Intern. We apply pur
 `Resume Score = (Sum(Parameter Score × Weight)) × 20` _(Normalized to 0-100)_
 
 ### 2. ⚡ Automated Decision Workflow
-The system buckets candidates based on their Resume Score:
-*   **🟢 Shortlisted (Score > 75%)**: High probability of hire. Action: **"Next Round"**.
-*   **🟠 Waitlisted (Score 45-75%)**: Good profile but missing some signals. Action: **"Invite to Interview"**.
-*   **🔴 Rejected (Score < 45%)**: Does not meet minimum criteria. Action: **"Send Rejection"**.
+The system buckets candidates based on their Resume Score, dynamically updating the **"Action Button"** on the dashboard:
+*   **🟢 Shortlisted (Score > 75%)**: High probability of hire. Button: **"Next Round"** (Triggers onboarding/final interview).
+*   **🟠 Waitlisted (Score 45-75%)**: Good profile but missing signals. Button: **"Invite to Interview"** (Sends AI Interview link).
+*   **🔴 Rejected (Score < 45%)**: Does not meet criteria. Button: **"Send Rejection"** (Triggers polite decline email).
 
 ### 3. 🤖 Adaptive AI Interviewer & Final Scoring
 Candidates on the waitlist can "earn" a shortlist spot through the AI Interview.
@@ -75,11 +76,20 @@ Virex implements a robust **"3-Ring Defense"** strategy to ensure interview inte
 To prevent gaming the system, candidates with the following statuses are **permanently blocked** from restarting or retaking the interview:
 *   `Shortlisted`, `Rejected`, `Terminated`, `Completed`.
 
+### 5. 🔐 Multi-User Secure Workspace
+Designed for collaborative teams, Virex ensures data privacy and efficient workflow management:
+*   **Data Isolation**: Every candidate profile is strictly tagged with the uploader's `recruiter_username`. Recruiters only access the talent pool they source.
+*   **Private Leaderboards**: Your hiring funnel and candidate rankings are isolated, ensuring no data leakage between recruiter accounts.
+
+## 📚 Documentation
+For a comprehensive deep dive into the system logic, detailed verification workflows, and architectural diagrams, please refer to the **[Project Documentation](PROJECT_DOCUMENTATION.md)**.
+
+
 ---
 
 ## 📐 System Architecture & Process Flow
 
-![VirexProcessFlow](ProcessFlow.png)
+[![image](https://image2url.com/r2/default/images/1768766096030-15277cf5-622b-4e68-809c-a883386b0260.png)]({url})
 
 
 ---

@@ -80,10 +80,17 @@ export function useDashboard() {
 
             if (!res.ok) throw new Error(data.detail || "Upload failed");
 
-            // Auto-switch to leaderboard
+            if (!res.ok) throw new Error(data.detail || "Upload failed");
+
+            // Async Queue: Return Job ID
+            if (data.job_id) {
+                return data.job_id;
+            }
+
+            // Fallback for non-async (shouldn't happen with new logic, but safe)
             await fetchCandidates();
             setView("leaderboard");
-            return data;
+            return null;
         } catch (err: any) {
             console.error("Upload Error:", err);
             setError(err.message);

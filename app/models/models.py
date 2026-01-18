@@ -22,6 +22,17 @@ class Candidate(Base):
     recruiter_username = Column(String, ForeignKey("recruiters.username"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+class UploadJob(Base):
+    __tablename__ = "upload_jobs"
+
+    job_id = Column(String, primary_key=True, index=True)
+    recruiter_username = Column(String, ForeignKey("recruiters.username"))
+    total_files = Column(Integer, default=0)
+    processed_count = Column(Integer, default=0)
+    status = Column(String, default="processing") # processing, completed, failed
+    results = Column(Text, default="[]") # Store JSON list of candidate_ids or errors
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
 class Recruiter(Base):
     __tablename__ = "recruiters"
 

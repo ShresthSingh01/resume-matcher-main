@@ -27,15 +27,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"System Startup: {settings.TITLE} v{settings.VERSION}")
     init_db()
     
-    # Load Embeddings
-    try:
-        candidates_list = get_leaderboard()
-        texts = [c['resume_text'] for c in candidates_list if c.get('resume_text')]
-        if texts:
-            load_initial_embeddings(texts)
-            logger.info("Embeddings loaded.")
-    except Exception as e:
-        logger.error(f"Failed to load embeddings: {e}")
+    init_db()
+    
+    # Embeddings are now lazy loaded on first use
+    logger.info("Embeddings will be loaded on demand.")
 
     yield
     # Shutdown Logic
@@ -50,7 +45,7 @@ app = FastAPI(
 # Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Adjust for production
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

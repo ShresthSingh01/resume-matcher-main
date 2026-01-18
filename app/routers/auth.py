@@ -50,11 +50,13 @@ async def register(username: str = Form(...), password: str = Form(...)):
 async def login(username: str = Form(...), password: str = Form(...)):
     try:
         user = get_recruiter(username)
-        if not user:
-            # Prevent timing attacks (conceptually), but simple return for now
-            raise HTTPException(status_code=401, detail="Invalid credentials user not found")
+        # We perform the check regardless of whether user exists to mitigate timing attacks (basic level)
+        # If user is None, we compare dummy strings
+        pwd_hash = user['password_hash'] if user else "dummy$dummy"
         
-        if verify_password(password, user['password_hash']):
+        is_valid = verify_password(password, pwd_hash)
+        
+        if user and is_valid:
             token = secrets.token_hex(32)
             set_user_session(username, token)
             
@@ -62,12 +64,11 @@ async def login(username: str = Form(...), password: str = Form(...)):
             response.set_cookie(key="session_token", value=token, httponly=True)
             return response
         
-        raise HTTPException(status_code=401, detail="Invalid credentials pwd mismatch")
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     except Exception as e:
         logger.error(f"Login Error: {e}")
-        # import traceback
-        # traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        # Return generic error in production
+        raise HTTPException(status_code=500, detail="Internal Server Error")
 
 @router.api_route("/logout", methods=["GET", "POST"])
 async def logout():

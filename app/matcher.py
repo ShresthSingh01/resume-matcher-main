@@ -394,3 +394,145 @@ async def extract_required_skills(jd_text: str) -> list[str]:
     all_skills = res.get("missing_skills", []) + res.get("matched_skills", [])
     return all_skills
 
+
+BULK_EVALUATION_PROMPT = """You are an expert HR Recruiter. 
+Your task is to evaluate MULTIPLE candidates for the role of '{job_role}'.
+
+Job Description Skills: {required_skills}
+
+SCORING RULES (Strictly followed):
+1. Education (1-5): 5=Top Tier/Masters, 1=No degree.
+2. Experience (1-5): 5=Exceeds usage, 1=No experience.
+3. Skills (1-5): 5=All Main Skills, 1=None.
+4. Projects (1-5): 5=Complex/Relevant, 1=None.
+5. Certifications (1-5): 5=Major Certs, 1=None.
+
+OUTPUT FORMAT:
+Return a JSON LIST of objects. Each object represents one candidate.
+[
+  {
+    "index": 0,
+    "likert_scores": { "education": 3, "experience": 4, "skills": 5, "projects": 3, "certifications": 1 },
+    "extracted_evidence": { "education": "...", "experience": "...", "skills": ["..."], "projects": "...", "certifications": "..." },
+    "resume_feedback": { "strengths": ["..."], "weaknesses": ["..."], "improvement_suggestions": ["..."] }
+  },
+  ...
+]
+
+Candidates to Analyze:
+{candidates_text}
+"""
+
+async def evaluate_resumes_bulk(
+    resumes: List[dict], 
+    job_role: str,
+    required_skills: list,
+    role_template: dict,
+    thresholds: dict
+) -> List[dict]:
+    """
+    Evaluates multiple resumes in a single LLM call.
+    """
+    llm = get_llm(temperature=0, max_tokens=4000) 
+    if not llm: return []
+
+    # 1. Format Input
+    candidates_text = ""
+    for r in resumes:
+        # Truncate text to avoid token limits.
+        text_snippet = r['text'][:2000].replace("\\n", " ") 
+        candidates_text += f"-- CANDIDATE {r['index']} --\\n{text_snippet}\\n\\n"
+
+    from langchain_core.prompts import ChatPromptTemplate
+    
+    prompt = ChatPromptTemplate.from_template(BULK_EVALUATION_PROMPT)
+    chain = prompt | llm
+    
+    try:
+        response = await chain.ainvoke({
+            "job_role": job_role,
+            "required_skills": ", ".join(required_skills),
+            "candidates_text": candidates_text
+        })
+        
+        content = response.content.strip()
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+            
+        data = json.loads(content)
+        
+        results = []
+        for item in data:
+            idx = item.get("index")
+            scores = item.get("likert_scores", {})
+            evidence = item.get("extracted_evidence", {})
+            feedback = item.get("resume_feedback", {})
+            
+            # Map params
+            params = role_template.get("parameters", {})
+            
+            # Create Pydantic models manually
+            l_scores = LikertScores(
+                education=scores.get("education", 1),
+                experience=scores.get("experience", 1),
+                skills=scores.get("skills", 1),
+                projects=scores.get("projects", 1),
+                certifications=scores.get("certifications", 1)
+            )
+            
+            # Weighted Sum
+            weighted_sum = 0.0
+            param_map = {
+                "education": l_scores.education,
+                "experience": l_scores.experience,
+                "skills": l_scores.skills,
+                "projects": l_scores.projects,
+                "certifications": l_scores.certifications
+            }
+            for key, val in param_map.items():
+                weight = params.get(key, 0.0)
+                weighted_sum += ((val / 5.0) * weight)
+            
+            final_score = round(weighted_sum * 100, 2)
+            
+            # Decisions
+            shortlist = thresholds.get("shortlist", 75)
+            interview = thresholds.get("interview", 50)
+            
+            decision = "Weak Resume – Reject"
+            interview_req = False
+            if final_score >= shortlist:
+                decision = "Strong Match"
+                interview_req = False
+            elif final_score >= interview:
+                decision = "Interview Required"
+                interview_req = True
+                
+            out = ResumeEvaluationOutput(
+                likert_scores=l_scores,
+                weighted_resume_score=final_score,
+                decision=decision,
+                interview_required=interview_req,
+                resume_feedback=ResumeFeedback(
+                    strengths=feedback.get("strengths", []),
+                    weaknesses=feedback.get("weaknesses", []),
+                    improvement_suggestions=feedback.get("improvement_suggestions", [])
+                ),
+                extracted_evidence=ExtractedEvidence(
+                    education=evidence.get("education", "N/A"),
+                    experience=evidence.get("experience", "N/A"),
+                    skills=evidence.get("skills", []),
+                    projects=evidence.get("projects", "N/A"),
+                    certifications=evidence.get("certifications", "N/A")
+                )
+            )
+            results.append({"index": idx, "output": out})
+            
+        return results
+
+    except Exception as e:
+        logger.error(f"Bulk Eval Error: {e}")
+        return []
+

@@ -17,5 +17,8 @@ class Settings:
     # App
     TITLE = "AI Resume Matcher & Interviewer"
     VERSION = "2.0.0"
+    
+    # Security
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
 settings = Settings()

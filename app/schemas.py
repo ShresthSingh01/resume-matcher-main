@@ -98,3 +98,11 @@ class ResumeEvaluationOutput(BaseModel):
     decision: str
     interview_required: bool
     resume_feedback: ResumeFeedback
+
+class UploadJobResponse(BaseModel):
+    job_id: str
+    status: str
+    total_files: int
+    processed_count: int
+    results: Optional[str] = None # JSON string of results
+    created_at: datetime

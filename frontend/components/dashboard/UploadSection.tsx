@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { IoCloudUploadOutline, IoDocumentTextOutline, IoBriefcaseOutline, IoArrowForwardOutline, IoOptionsOutline } from "react-icons/io5";
+import { useState, useEffect } from "react";
+import { IoCloudUploadOutline, IoDocumentTextOutline, IoBriefcaseOutline, IoArrowForwardOutline, IoOptionsOutline, IoCheckmarkCircleOutline } from "react-icons/io5";
 
 interface UploadSectionProps {
-    onUpload: (files: FileList, jd: string, template: string) => Promise<void>;
-    loading: boolean;
+    onUpload: (files: FileList, jd: string, template: string) => Promise<string | null>; // Returns Job ID
+    loading: boolean; // Initial submit loading
 }
 
 export default function UploadSection({ onUpload, loading }: UploadSectionProps) {
@@ -13,14 +13,97 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
     const [jd, setJd] = useState("");
     const [template, setTemplate] = useState("auto");
 
+    // Async Job State
+    const [jobId, setJobId] = useState<string | null>(null);
+    const [processed, setProcessed] = useState(0);
+    const [total, setTotal] = useState(0);
+    const [status, setStatus] = useState("idle"); // idle, processing, completed, failed
+
+    // Polling Effect
+    useEffect(() => {
+        if (!jobId || status === "completed" || status === "failed") return;
+
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/jobs/${jobId}`);
+                const data = await res.json();
+
+                if (data.status) {
+                    setStatus(data.status);
+                    setProcessed(data.processed || 0);
+                    setTotal(data.total || 0);
+
+                    if (data.status === "completed") {
+                        clearInterval(interval);
+                        // Trigger refresh? passed as prop or handled by parent?
+                        // For now just show completion state
+                        window.location.reload(); // Simple refresh to show leaderboard
+                    }
+                }
+            } catch (e) {
+                console.error("Polling error", e);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [jobId, status]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!files || files.length === 0 || !jd) {
             alert("Please provide at least one resume and a Job Description.");
             return;
         }
-        await onUpload(files, jd, template);
+        const id = await onUpload(files, jd, template);
+        if (id) {
+            setJobId(id);
+            setTotal(files.length);
+            setStatus("queued");
+        }
     };
+
+    if (jobId) {
+        // Progress UI
+        const percent = total > 0 ? Math.round((processed / total) * 100) : 0;
+
+        return (
+            <div className="mx-auto w-full max-w-2xl animate-in fade-in zoom-in duration-300">
+                <div className="glass-card text-center py-12">
+                    <div className="mb-6 flex justify-center">
+                        {status === "completed" ? (
+                            <div className="h-20 w-20 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-4xl animate-bounce">
+                                <IoCheckmarkCircleOutline />
+                            </div>
+                        ) : (
+                            <div className="relative h-20 w-20">
+                                <div className="absolute inset-0 rounded-full border-4 border-[var(--bg-tertiary)]"></div>
+                                <div className="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center text-xs font-bold">{percent}%</div>
+                            </div>
+                        )}
+                    </div>
+
+                    <h2 className="text-xl font-bold mb-2">
+                        {status === "queued" && "Queued for Processing..."}
+                        {status === "processing" && `Analyzing Resumes (${processed}/${total})...`}
+                        {status === "completed" && "Analysis Complete!"}
+                    </h2>
+
+                    <p className="text-[var(--text-secondary)] mb-8">
+                        {status === "completed" ? "Redirecting to rankings..." : "Please wait while our AI agents evaluate each candidate."}
+                    </p>
+
+                    {/* Progress Bar */}
+                    <div className="mx-auto max-w-md h-2 bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-blue-500 transition-all duration-500 ease-out"
+                            style={{ width: `${percent}%` }}
+                        ></div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="mx-auto w-full max-w-5xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -94,11 +177,11 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
                 <div className="col-span-full text-center mt-6">
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || (jobId !== null)}
                         className="btn btn-primary px-16 py-4 text-lg w-full md:w-auto tracking-wide group"
                     >
                         {loading ? (
-                            <>Analyzing <span className="animate-pulse">...</span></>
+                            <>Starting Upload <span className="animate-pulse">...</span></>
                         ) : (
                             <>Batch Analyze <IoArrowForwardOutline className="ml-2 inline group-hover:translate-x-1 transition-transform" /></>
                         )}

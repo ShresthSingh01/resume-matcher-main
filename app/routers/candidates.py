@@ -40,6 +40,33 @@ async def get_candidate_status(candidate_id: str):
         "final_score": data.get("final_score")
     }
 
+from app.models.models import UploadJob
+from app.jobs import process_upload_job
+import uuid
+
+@router.get("/jobs/{job_id}")
+async def get_job_status(job_id: str, user: str = Depends(get_current_user)):
+    if not user: raise HTTPException(status_code=401)
+    
+    # We ideally check if this job belongs to user, but for now open internally
+    from app.db import get_db_session
+    session = get_db_session()
+    try:
+        job = session.query(UploadJob).filter(UploadJob.job_id == job_id).first()
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        return {
+            "job_id": job.job_id,
+            "status": job.status,
+            "total": job.total_files,
+            "processed": job.processed_count,
+            "results": job.results, # JSON string
+            "created_at": job.created_at
+        }
+    finally:
+        session.close()
+
 @router.post("/upload")
 async def upload_resume(
     resumes: list[UploadFile] = File(...),
@@ -52,7 +79,7 @@ async def upload_resume(
     if not user: raise HTTPException(status_code=401, detail="Unauthorized")
 
     try:
-        # 2. Parse JD (Once for all)
+        # 1. Parse JD (Immediate)
         jd_text = ""
         if jd_file:
             jd_content = await jd_file.read()
@@ -63,130 +90,47 @@ async def upload_resume(
         if not jd_text:
             raise HTTPException(status_code=400, detail="Job Description is required.")
 
-        results = []
+        # 2. Create Job Record
+        job_id = str(uuid.uuid4())
+        
+        from app.db import get_db_session
+        session = get_db_session()
+        try:
+            new_job = UploadJob(
+                job_id=job_id,
+                recruiter_username=user,
+                total_files=len(resumes),
+                processed_count=0,
+                status="queued"
+            )
+            session.add(new_job)
+            session.commit()
+        finally:
+            session.close()
+            
+        # 3. Read files into memory for background processing
+        # Note: For massive scale (1000+), save to temp disk instead of RAM
+        files_data = []
+        filenames = []
+        for r in resumes:
+            content = await r.read()
+            files_data.append(content)
+            filenames.append(r.filename)
+            
+        # 4. Trigger Background Task
+        background_tasks.add_task(
+            process_upload_job,
+            job_id,
+            files_data,
+            filenames,
+            jd_text,
+            template_mode,
+            user
+        )
+        
+        return {"job_id": job_id, "message": "Upload started in background", "total_files": len(resumes)}
 
-       
-        # 3. Process Resumes in Parallel (with Semaphore)
-        sem = asyncio.Semaphore(5) # Limit to 5 concurrent LLM calls
-        
-        # Pre-calculate JD context ONCE
-        # A. Detect Role (or use Manual)
-        if template_mode and template_mode != "auto":
-             detected_role = template_mode 
-        else:
-             try:
-                 detected_role = await detect_job_role(jd_text)
-             except Exception as e:
-                 logger.error(f"Role Detection Failed (Quota/Error): {e}")
-                 # Fallback so we don't crash the entire upload
-                 detected_role = "Software Engineer" # Default fallback
-             
-        logger.info(f"Role Mode: {template_mode}, Active Role: {detected_role}")
-        
-        # B. Get Template
-        role_template, thresholds = get_role_template(detected_role)
-        
-        # C. Extract JD Skills (for required_skills param)
-        required_skills = await extract_required_skills(jd_text)
-        
-        async def process_single_resume(resume):
-            try:
-                # A. Parse
-                file_content = await resume.read()
-                resume_text = parse_resume(file_content, resume.filename)
-                
-                if not resume_text:
-                    return None
-                
-                # B. Async Evaluation (with rate limit)
-                async with sem:
-                    evaluation_result = await evaluate_resume_structured(
-                        resume_text=resume_text,
-                        job_role=detected_role,
-                        experience_level="Mid", # Defaulting to Mid if unknown, or we could infer from role name
-                        required_skills=required_skills,
-                        role_template=role_template,
-                        thresholds=thresholds
-                    )
-
-                # C. Extract Data for response/DB
-                match_score = evaluation_result.weighted_resume_score
-                matched_skills = evaluation_result.extracted_evidence.skills # This is technically resume skills, not intersection.
-                # For compatibility with frontend "matched_skills" display:
-                # We should compute intersection or just use resume skills?
-                # The frontend likely expects 'matched' (intersection) and 'missing'.
-                # The new schema output has 'extracted_evidence.skills'.
-                # Let's do a quick set intersection here for UI compatibility
-                r_skills = set(s.lower() for s in evaluation_result.extracted_evidence.skills)
-                jd_skills = set(s.lower() for s in required_skills)
-                
-                # Simple set math for compatibility
-                found_list = [s for s in required_skills if s.lower() in r_skills]
-                missing_list = [s for s in required_skills if s.lower() not in r_skills]
-                
-                # D. Determine Status
-                # "Strong Match (Shortlist)" -> "Shortlisted"
-                # "Borderline (Interview Required)" -> "Interview"
-                # "Weak Match (Reject)" -> "Rejected"
-                status = "Reviewed"
-                d = evaluation_result.decision.lower()
-                if "reject" in d: status = "Rejected"
-                elif "shortlist" in d: status = "Shortlisted"
-                elif "interview" in d: status = "Waitlist"
-                
-                # E. DB Save
-                cid = add_candidate(
-                    name=resume.filename, 
-                    resume_text=resume_text, 
-                    jd=jd_text, 
-                    match_score=match_score,
-                    matched_skills=found_list,
-                    missing_skills=missing_list,
-                    resume_evaluation=evaluation_result.model_dump(),
-                    status=status,
-                    recruiter_username=user
-                )
-                
-                # E. Result Structure
-                return {
-                    "candidate_id": cid,
-                    "filename": resume.filename,
-                    "name": resume.filename,
-                    "email": evaluation_result.extracted_evidence.education, # Using education field as proxy for 'summary' or N/A
-                    "phone": "N/A",
-                    "match_score": match_score,
-                    "matched_skills": found_list,
-                    "missing_skills": missing_list,
-                    "reasoning": f"Decision: {evaluation_result.decision}",
-                    "profile": evaluation_result.extracted_evidence.model_dump(),
-                    "is_duplicate": False, # Skipped duplicate check for speed/simplicity in this refactor
-                    "interview_context": {
-                        "can_interview": evaluation_result.interview_required,
-                        "prompt": f"Decision: {evaluation_result.decision}",
-                        "payload": {
-                            "resume_text": resume_text, 
-                            "job_description": jd_text,
-                            "match_score": match_score
-                        }
-                    }
-                }
-            except Exception as e:
-                logger.error(f"Error processing {resume.filename}: {e}")
-                return {"filename": resume.filename, "error": str(e)}
-
-        # Run all tasks
-        tasks = [process_single_resume(r) for r in resumes]
-        results = await asyncio.gather(*tasks)
-        
-        # Filter None
-        return [r for r in results if r]
-        
-    except HTTPException as he:
-        raise he
     except Exception as e:
-        import traceback
-        with open("error.log", "w") as f:
-            f.write(traceback.format_exc())
         logger.error(f"Error in /upload: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 

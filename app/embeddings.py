@@ -18,7 +18,30 @@ model = DummyModel()
 # In-memory storage for duplicates (list of dicts or embeddings)
 # We store embeddings as a numpy array for speed if possible, but list is fine for small scale.
 # Format: {'id': str, 'embedding': np.array}
-known_embeddings = []
+_known_embeddings = []
+_embeddings_loaded = False
+
+def get_known_embeddings():
+    global _embeddings_loaded, _known_embeddings
+    if not _embeddings_loaded:
+        _load_embeddings_lazy()
+    return _known_embeddings
+
+def _load_embeddings_lazy():
+    global _embeddings_loaded, _known_embeddings
+    # Avoid circular imports
+    from app.db import get_leaderboard
+    
+    # print("⏳ Lazy loading embeddings...")
+    candidates = get_leaderboard()
+    texts = [c['resume_text'] for c in candidates if c.get('resume_text')]
+    
+    if texts:
+        embeddings = model.encode(texts)
+        _known_embeddings = list(embeddings)
+    
+    _embeddings_loaded = True
+    # print("✅ Embeddings loaded.")
 
 def get_embedding(text: str) -> np.ndarray:
     return model.encode([text])[0]
@@ -27,20 +50,17 @@ def check_duplicate(text: str, threshold: float = 0.90) -> bool:
     """
     Generate embedding for text and check against known_embeddings.
     If similarity > threshold, return True.
-    Also adds the new embedding to the store if not duplicate? 
-    The requirement says 'Flag as duplicate', not necessarily 'Prevent adding'.
-    But usually we want to know if it IS a duplicate.
     """
-    global known_embeddings
+    known = get_known_embeddings()
     
     new_emb = get_embedding(text)
     
-    if not known_embeddings:
-        known_embeddings.append(new_emb)
+    if not known:
+        known.append(new_emb)
         return False
         
     # Stack known embeddings
-    known_matrix = np.array(known_embeddings)
+    known_matrix = np.array(known)
     
     # Calculate similarities
     sims = cosine_similarity([new_emb], known_matrix)[0]
@@ -50,21 +70,12 @@ def check_duplicate(text: str, threshold: float = 0.90) -> bool:
         return True
     
     # If not duplicate, add to known (runtime cache)
-    known_embeddings.append(new_emb)
+    known.append(new_emb)
     return False
 
+# Legacy function kept for compatibility but no-op or redirects
 def load_initial_embeddings(texts: list[str]):
-    """
-    Populate known_embeddings from DB texts on startup.
-    """
-    global known_embeddings
-    if not texts:
-        return
-        
-    print(f"⏳ Bulk embedding {len(texts)} existing resumes...")
-    embeddings = model.encode(texts)
-    known_embeddings = list(embeddings)
-    print("✅ Embeddings loaded.")
+    pass
 
 def calculate_similarity(text1: str, text2: str) -> float:
     """

@@ -243,14 +243,37 @@ class InterviewManager:
         new_status = "Shortlisted" if final_score >= 70 else "Rejected"
 
         if session.candidate_id and session.candidate_id != "unknown":
+             # Check for Anti-Cheating Flags
+             db_cand = get_candidate(session.candidate_id)
+             penalty_msg = ""
+             if db_cand and db_cand.get('flags'):
+                 flags = json.loads(db_cand['flags'])
+                 flag_count = len(flags)
+                 
+                 if flag_count > 0:
+                     logger.warning(f"⚠️ Candidate {session.candidate_id} has {flag_count} cheat flags.")
+                     # Penalty Logic
+                     if flag_count >= 2:
+                         final_score = 0
+                         new_status = "Rejected (Cheating)"
+                         penalty_msg = f"Rejected due to {flag_count} anti-cheating violations."
+                     else:
+                         # 20% penalty for 1 flag
+                         penalty = final_score * 0.2
+                         final_score -= penalty
+                         penalty_msg = f"Score reduced by 20% due to anti-cheating violation."
+
              update_candidate_interview(
                  session.candidate_id, 
                  round(avg_interview_score * 10, 2),
                  round(final_score, 2),
-                 {"transcript": [
-                    {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
-                    for q in session.question_scores
-                 ]},
+                 {
+                     "transcript": [
+                        {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
+                        for q in session.question_scores
+                     ],
+                     "note": penalty_msg
+                 },
                  status=new_status
              )
         

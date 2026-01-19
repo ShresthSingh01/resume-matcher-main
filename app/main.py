@@ -2,16 +2,13 @@
 import sentry_sdk
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from loguru import logger
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.core.middleware import log_requests_middleware
-from app.db import init_db, get_leaderboard, get_user_by_token
-from app.embeddings import load_initial_embeddings
-from fastapi.middleware.cors import CORSMiddleware
+from app.db import init_db
 
 # Import Routers
 from app.routers import auth, candidates, interview, jobs
@@ -25,8 +22,6 @@ async def lifespan(app: FastAPI):
     # Startup Logic
     setup_logging()
     logger.info(f"System Startup: {settings.TITLE} v{settings.VERSION}")
-    init_db()
-    
     init_db()
     
     # Embeddings are now lazy loaded on first use
@@ -52,8 +47,6 @@ app.add_middleware(
 )
 app.middleware("http")(log_requests_middleware)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 # Include Routers
 app.include_router(auth.router)
 app.include_router(candidates.router)
@@ -61,31 +54,18 @@ app.include_router(interview.router)
 app.include_router(jobs.router)
 
 # --- Top Level Page Routes ---
-
-async def get_current_user_optional(request: Request):
-    # 1. Check Session Cookie
-    session_token = request.cookies.get("session_token")
-    if session_token:
-        username = get_user_by_token(session_token)
-        if username:
-            return username
-    return None
-
-@app.get("/login")
-async def login_page():
-    return FileResponse("static/login.html")
+from fastapi.responses import RedirectResponse
 
 @app.get("/")
-async def read_root(request: Request):
-    user = await get_current_user_optional(request)
-    if not user:
-        return RedirectResponse(url="/login", status_code=302)
-    return FileResponse("static/index.html")
+async def redirect_root():
+    return RedirectResponse("http://localhost:3000/")
 
-@app.get("/interview/start")
-async def read_interview_start(candidate_id: str):
-    """
-    Serves the Candidate Interview Portal.
-    """
-    return FileResponse("static/candidate.html")
+@app.get("/login")
+async def redirect_login():
+    return RedirectResponse("http://localhost:3000/login")
+
+@app.get("/candidate")
+async def redirect_candidate(request: Request):
+    return RedirectResponse(f"http://localhost:3000/candidate?{request.query_params}")
+
 

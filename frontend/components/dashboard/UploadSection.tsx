@@ -186,7 +186,7 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
                             <>Batch Analyze <IoArrowForwardOutline className="ml-2 inline group-hover:translate-x-1 transition-transform" /></>
                         )}
                     </button>
-                    <p className="mt-4 text-xs font-mono text-[var(--text-secondary)] opacity-60">Powered by Gemini Pro Vision</p>
+                    <p className="mt-4 text-xs font-mono text-[var(--text-secondary)] opacity-60">Made with ❤️ Team_AlgoHolics</p>
                 </div>
             </form>
         </div>

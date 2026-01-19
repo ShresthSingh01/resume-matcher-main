@@ -10,12 +10,23 @@ import { useInterview } from "@/hooks/useInterview";
 function CandidateFlow() {
     const searchParams = useSearchParams();
     const [candidateId, setCandidateId] = useState<string | null>(null);
-    const { status, messages, currentQuestion, result, startInterview, submitAnswer, error } = useInterview();
+    const { status, messages, currentQuestion, result, startInterview, submitAnswer, error, flagViolation } = useInterview();
 
     useEffect(() => {
         const cid = searchParams.get("candidate_id");
         if (cid) setCandidateId(cid);
     }, [searchParams]);
+
+    const handleStart = async () => {
+        if (!candidateId) return;
+        try {
+            await document.documentElement.requestFullscreen();
+        } catch (err) {
+            console.error("Fullscreen blocked or failed:", err);
+            // We continue anyway, as the blocker in InterviewInterface will catch it
+        }
+        startInterview(candidateId);
+    };
 
     // View Routing
     if (status === "finished" && result) {
@@ -23,15 +34,14 @@ function CandidateFlow() {
     }
 
     if (status === "active" || status === "loading") {
-        // While loading (connecting), show interface with loading message?
-        // Or keep landing loading?
-        // Better to show Interface so user feels "in"
         return (
             <div className="p-4">
                 <InterviewInterface
                     messages={messages}
                     onSendMessage={submitAnswer}
                     currentQuestion={currentQuestion}
+                    status={status}
+                    onFlagViolation={flagViolation}
                 />
             </div>
         );
@@ -56,7 +66,7 @@ function CandidateFlow() {
             )}
 
             <CandidateLanding
-                onStart={() => candidateId && startInterview(candidateId)}
+                onStart={handleStart}
                 loading={(status as any) === "loading"}
             />
 

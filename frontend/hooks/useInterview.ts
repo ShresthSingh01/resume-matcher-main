@@ -7,7 +7,7 @@ export type Message = {
     content: string;
 };
 
-export type InterviewStatus = "idle" | "loading" | "active" | "finished" | "error";
+export type InterviewStatus = "idle" | "loading" | "active" | "finished" | "error" | "terminated";
 
 export function useInterview() {
     const [status, setStatus] = useState<InterviewStatus>("idle");
@@ -115,11 +115,18 @@ export function useInterview() {
     const flagViolation = async (reason: string) => {
         if (!sessionId) return;
         try {
-            await fetch("/api/interview/flag", {
+            const res = await fetch("/api/interview/flag", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ session_id: sessionId, reason }),
             });
+            const data = await res.json();
+
+            if (data.status === "terminated") {
+                setStatus("terminated");
+                setError(data.msg || "Interview Terminated due to multiple violations.");
+            }
+            return data;
         } catch (e) {
             console.error("Flag error", e);
         }

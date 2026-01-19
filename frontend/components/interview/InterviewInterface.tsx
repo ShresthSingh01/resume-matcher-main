@@ -10,11 +10,18 @@ interface InterviewInterfaceProps {
     messages: Message[];
     onSendMessage: (text: string) => void;
     currentQuestion: string | null;
+    status: string;
+    onFlagViolation: (reason: string) => Promise<any>;
 }
 
-export default function InterviewInterface({ messages, onSendMessage, currentQuestion }: InterviewInterfaceProps) {
+export default function InterviewInterface({ messages, onSendMessage, currentQuestion, status, onFlagViolation }: InterviewInterfaceProps) {
     const [inputValue, setInputValue] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const inputValueRef = useRef(inputValue);
+
+    useEffect(() => {
+        inputValueRef.current = inputValue;
+    }, [inputValue]);
 
     // Media & Speech Hooks
     const { videoRef, initWebcam, initAudioContext, audioContextRef, analyserRef, getAudioLevel } = useMedia();
@@ -24,15 +31,6 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
     }, []);
 
     const handleSilence = useCallback(() => {
-        // Auto-submit logic if needed, or just let user click send?
-        // For improved UX, let's auto-submit ONLY if significantly long?
-        // Actually, relying on auto-submit can be annoying if it cuts off.
-        // Let's just stop recording.
-        // But we can't call stopListening directly here because it comes from useSpeech... circular?
-        // Solution: Pass a ref or use a stable wrapper.
-        // Actually useSpeech returns stopListening, so we can't call it inside the prop passed TO useSpeech.
-        // So handleSilence should ideally just alert parent or set state.
-        // But for now let's just log.
         console.log("Silence detected - stopping recording logic handled in hook");
     }, []);
 
@@ -40,9 +38,6 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
 
     // Effect to sync silence to stop
     useEffect(() => {
-        // If we wanted to trigger stopListening on silence, useSpeech hook handles it internally actually!
-        // check useSpeech: recognition.stop() is called on silence.
-        // So handleSilence prop is just for Side Effects (like auto-send).
     }, []);
 
     // Init Webcam on mount
@@ -61,7 +56,6 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
         if (currentQuestion && audioContextRef.current && analyserRef.current) {
             speak(currentQuestion, audioContextRef.current, analyserRef.current);
         } else if (currentQuestion) {
-            // Fallback if context not ready (unlikely after init)
             speak(currentQuestion, null, null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,14 +70,92 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
         stopSpeaking(); // Cut off AI if interrupting
     };
 
-    // Timer Logic
-    const [timer, setTimer] = useState(0);
+    // Timer Logic (Countdown 40 seconds per question)
+    const [secondsLeft, setSecondsLeft] = useState(40);
+    // Anti-Cheating State
+    const [isFullscreen, setIsFullscreen] = useState(true);
+    // Track if TTS has initiated for the current question to prevent early timer start
+    const [hasSpeechStarted, setHasSpeechStarted] = useState(false);
+
+    // Reset Timer on new question or status change
     useEffect(() => {
-        const interval = setInterval(() => {
-            setTimer(prev => prev + 1);
-        }, 1000);
+        setSecondsLeft(40);
+        setHasSpeechStarted(false);
+    }, [currentQuestion, status]);
+
+    // Track when speech actually starts
+    useEffect(() => {
+        if (isSpeaking) {
+            setHasSpeechStarted(true);
+        }
+    }, [isSpeaking]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+
+        // ONLY count down if:
+        // 1. Status is active
+        // 2. AI is NOT speaking (wait for question to finish)
+        // 3. Not paused by fullscreen blocker (optional but good UX)
+        // 4. Speech has actually attempted to start (avoids gap between question load and TTS start)
+        if (status === 'active' && !isSpeaking && isFullscreen && hasSpeechStarted) {
+            interval = setInterval(() => {
+                setSecondsLeft(prev => {
+                    if (prev <= 1) {
+                        clearInterval(interval);
+                        // Auto-submit when time runs out
+                        onSendMessage(inputValueRef.current || "Time Limit Exceeded");
+                        setInputValue("");
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
         return () => clearInterval(interval);
-    }, []);
+    }, [status, isSpeaking, isFullscreen, onSendMessage, hasSpeechStarted]);
+
+    const reconnectFullscreen = () => {
+        document.documentElement.requestFullscreen().catch(e => console.error(e));
+    };
+
+
+
+    // Anti-Cheating Logic
+    useEffect(() => {
+        if (status !== 'active') return;
+
+        const handleVisibilityChange = async () => {
+            if (document.hidden) {
+                const res = await onFlagViolation("Tab Switch / Hidden Window");
+                if (res?.warning_count) {
+                    alert(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Multiple violations will result in termination.`);
+                }
+            }
+        };
+
+        const handleFullscreenChange = async () => {
+            const isFull = !!document.fullscreenElement;
+            setIsFullscreen(isFull);
+            if (!isFull) {
+                const res = await onFlagViolation("Exited Fullscreen");
+                if (res?.warning_count) {
+                    alert(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Stay in fullscreen.`);
+                }
+            }
+        };
+
+        // Enforce Fullscreen on start?
+        // document.documentElement.requestFullscreen().catch(e => console.log("Fullscreen blocked", e));
+
+        document.addEventListener("visibilitychange", handleVisibilityChange);
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+            document.removeEventListener("fullscreenchange", handleFullscreenChange);
+        };
+    }, [status, onFlagViolation]);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -151,19 +223,45 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
 
                 {/* Status Badge */}
                 <div className="absolute right-6 top-6 flex flex-col gap-2 items-end">
-                    <div className="rounded-full border border-green-500/30 bg-green-500/10 px-4 py-1.5 font-mono text-[10px] font-bold text-green-400 shadow-[0_0_15px_rgba(16,185,129,0.1)] backdrop-blur-md flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        NEURAL LINK ACTIVE
-                    </div>
+
                     {/* Timer Badge */}
-                    <div className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-4 py-1.5 font-mono text-[10px] font-bold text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)] backdrop-blur-md flex items-center gap-2">
-                        <span className="text-xs">⏱</span> {formatTime(timer)}
+                    <div className={`rounded-full border px-4 py-1.5 font-mono text-[10px] font-bold shadow-[0_0_15px_rgba(6,182,212,0.1)] backdrop-blur-md flex items-center gap-2 ${secondsLeft < 10 ? 'border-red-500/30 bg-red-500/10 text-red-400' : 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400'}`}>
+                        <span className="text-xs">⏱</span> {formatTime(secondsLeft)}
                     </div>
                 </div>
             </div>
+
+            {/* TERMINATED BLOCKER OVERLAY */}
+            {status === 'terminated' && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <IoWarningOutline className="text-6xl text-red-600 mb-4 animate-bounce" />
+                    <h2 className="text-3xl font-bold text-red-500 mb-2">Interview Terminated</h2>
+                    <p className="text-slate-400 max-w-md mb-8 text-lg">
+                        Multiple anti-cheating violations were detected. your session has been permanently locked.
+                    </p>
+                    <div className="rounded-full bg-red-900/20 border border-red-500/30 px-6 py-2 text-red-400 font-mono">
+                        Status: DISQUALIFIED
+                    </div>
+                </div>
+            )}
+
+            {/* FULLSCREEN BLOCKER OVERLAY */}
+            {!isFullscreen && status === 'active' && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <IoWarningOutline className="text-6xl text-red-500 mb-4 animate-bounce" />
+                    <h2 className="text-2xl font-bold text-white mb-2">Interview Paused</h2>
+                    <p className="text-slate-400 max-w-md mb-8">
+                        You have exited fullscreen mode. This is flagged as a potential violation.
+                        Please return to fullscreen to continue correctly.
+                    </p>
+                    <button
+                        onClick={reconnectFullscreen}
+                        className="rounded-full bg-red-600 px-8 py-3 font-bold text-white hover:bg-red-500 transition-all shadow-[0_0_30px_rgba(239,68,68,0.4)]"
+                    >
+                        Return to Interview
+                    </button>
+                </div>
+            )}
 
             {/* 2. Chat Area */}
             <div className="flex-1 overflow-y-auto p-8 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-white/10 space-y-8 bg-transparent relative">

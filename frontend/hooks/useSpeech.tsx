@@ -149,7 +149,18 @@ export function useSpeech(
             }
 
             audio.onended = () => setIsSpeaking(false);
-            audio.play();
+
+            // Handle Auto-Play Policies
+            audio.play().catch(playError => {
+                console.warn("Auto-play blocked:", playError);
+                // If blocked, fallback to browser TTS which might have different permissions or just fail
+                // But better to just try browser TTS as backup
+                // setIsSpeaking(false); // Removed to keep speaking state active during fallback
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.onend = () => setIsSpeaking(false);
+                window.speechSynthesis.speak(utter);
+            });
+
             currentAudioRef.current = audio;
 
         } catch (e) {

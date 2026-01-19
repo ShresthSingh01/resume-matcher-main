@@ -100,7 +100,7 @@ For a comprehensive deep dive into the system logic, detailed verification workf
 | :--- | :--- | :--- |
 | **Backend** | `FastAPI` (Python) | Async web server, handling parallel LLM requests and WebSocket-like flows. |
 | **Evaluation** | `LangChain` + `Pydantic` | Structured output parsing for strict JSON data enforcement. |
-| **Frontend** | `Vanilla JS` + `HTML5` | Responsive, no-build UI with real-time updates. |
+| **Frontend** | `Next.js` (React) + `TypeScript` | Responsive, component-based UI with Server Side Rendering. |
 | **Database** | `SQLite` | Persistent storage for Candidates, Sessions, and Transcripts. |
 | **AI Models** | `GPT-4o-mini` | Powers the reasoning, resume parsing, and interview generation. |
 | **TTS (Voice)** | `ElevenLabs` / Browser | Text-to-Speech for realistic interview experience. |
@@ -138,3 +138,21 @@ For a comprehensive deep dive into the system logic, detailed verification workf
 5.  **Access the Dashboard**
     *   Login: `admin` / `admin123`
     *   URL: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+
+### 6. 🐳 Run with Docker
+
+Easily spin up the entire stack (Frontend + Backend + Database) using Docker.
+
+1.  **Ensure Docker is Installed**
+    Make sure you have Docker Desktop (Windows/Mac) or Docker Engine (Linux) installed and running.
+
+2.  **Build and Run**
+    ```bash
+    docker compose up --build
+    ```
+
+3.  **Access the App**
+    *   **Frontend**: [http://localhost:3000](http://localhost:3000)
+    *   **Backend API**: [http://localhost:8000/docs](http://localhost:8000/docs)
+    *   **Database**: Accessible on port `5432`
+

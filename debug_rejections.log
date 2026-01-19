@@ -1,0 +1,5 @@
+--- Starting Flow ---
+DEBUG: Role detected: <coroutine object detect_job_role at 0x000001D711291A80>
+DEBUG: Jobs found: 0
+DEBUG: Jobs data: []
+--- Email Sent (Mock or Real) ---

@@ -113,7 +113,7 @@ def update_candidate_status(cid: str, status: str):
     finally:
         session.close()
 
-def flag_candidate(cid: str, violation: str):
+def flag_candidate(cid: str, violation: str) -> int:
     session = get_db_session()
     try:
         candidate = session.query(Candidate).filter(Candidate.id == cid).first()
@@ -122,6 +122,8 @@ def flag_candidate(cid: str, violation: str):
              flags.append({"violation": violation, "timestamp": str(datetime.now())})
              candidate.flags = json.dumps(flags)
              session.commit()
+             return len(flags)
+        return 0
     finally:
         session.close()
 

@@ -2,10 +2,10 @@ import json
 import re
 from app.llm import get_llm
 from app.interview_prompts import MATCHING_PROMPT, PROFILE_EXTRACTION_PROMPT, RESUME_EVALUATION_PROMPT, ROLE_DEDUCTION_PROMPT
-from app.schemas import CandidateProfile, ResumeEvaluationOutput
+from app.schemas import CandidateProfile, ResumeEvaluationOutput, LikertScores, ResumeFeedback, ExtractedEvidence
 import asyncio
 from loguru import logger
-
+from typing import List
 def extract_skills(resume_text: str, jd_text: str) -> dict:
     """
     Extract skills and reasoning using LLM.
@@ -410,12 +410,12 @@ SCORING RULES (Strictly followed):
 OUTPUT FORMAT:
 Return a JSON LIST of objects. Each object represents one candidate.
 [
-  {
+  {{
     "index": 0,
-    "likert_scores": { "education": 3, "experience": 4, "skills": 5, "projects": 3, "certifications": 1 },
-    "extracted_evidence": { "education": "...", "experience": "...", "skills": ["..."], "projects": "...", "certifications": "..." },
-    "resume_feedback": { "strengths": ["..."], "weaknesses": ["..."], "improvement_suggestions": ["..."] }
-  },
+    "likert_scores": {{ "education": 3, "experience": 4, "skills": 5, "projects": 3, "certifications": 1 }},
+    "extracted_evidence": {{ "education": "...", "experience": "...", "skills": ["..."], "projects": "...", "certifications": "..." }},
+    "resume_feedback": {{ "strengths": ["..."], "weaknesses": ["..."], "improvement_suggestions": ["..."] }}
+  }},
   ...
 ]
 

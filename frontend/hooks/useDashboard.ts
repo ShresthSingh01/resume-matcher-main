@@ -24,6 +24,30 @@ export function useDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [view, setView] = useState<"upload" | "leaderboard">("upload");
     const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+    const [isVerifying, setIsVerifying] = useState(true);
+
+    // Verify Session on Mount
+    useEffect(() => {
+        const verifySession = async () => {
+            try {
+                // If we are on the client and have a cookie, we check if it's valid
+                // But since we can't easily check document.cookie perfectly for HTTPOnly, 
+                // we just hit the verify endpoint.
+                const res = await fetch("/api/verify");
+                if (res.status === 401) {
+                    // Stale cookie -> Redirect
+                    window.location.href = "/login";
+                } else {
+                    // Valid or other error (let main fetch handle other errors)
+                    setIsVerifying(false);
+                }
+            } catch (e) {
+                console.error("Verification failed", e);
+                setIsVerifying(false); // Let it fail naturally later or show UI
+            }
+        };
+        verifySession();
+    }, []);
 
     const fetchCandidates = useCallback(async () => {
         try {
@@ -37,9 +61,6 @@ export function useDashboard() {
 
             const data = await res.json();
             setCandidates(data);
-            // If we have candidates, default to leaderboard view? 
-            // recruiter.js logic: "Switch Views" only on explicit fetch success from upload?
-            // Let's keep manual toggle or auto-switch logic in component.
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -159,6 +180,7 @@ export function useDashboard() {
         uploadResumes,
         inviteCandidate,
         clearLeaderboard,
-        logout
+        logout,
+        isVerifying
     };
 }

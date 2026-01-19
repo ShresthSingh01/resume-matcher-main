@@ -12,6 +12,7 @@ from app.email_service import send_interview_invite, send_shortlist_email, send_
 from app.utils import clean_text
 from app.matcher import extract_required_skills, detect_job_role, extract_skills_async, evaluate_resume_structured
 from app.role_templates import get_role_template
+from app.jobs_service import search_jobs
 from app.routers.auth import get_current_user
 import json
 
@@ -144,6 +145,34 @@ async def reset_db():
     clear_db()
     return {"message": "Database cleared."}
 
+async def background_rejection_flow(email: str, name: str, resume_text: str):
+    """
+    Background task: Detect role -> Fetch Adzuna jobs -> Send Rejection Email with jobs.
+    """
+    try:
+        # 1. Detect Role from Resume (or default to 'Software Engineer' if unclear)
+        role = await detect_job_role(resume_text)
+        if not role: role = "Software Engineer"
+        
+        with open("debug_rejections_v2.log", "a", encoding="utf-8") as f:
+             f.write(f"--- Flow Started ---\n")
+             f.write(f"Role: {role}\n")
+        
+        # 2. Search Jobs
+        jobs = search_jobs(role, results_per_page=3)
+        
+        with open("debug_rejections_v2.log", "a", encoding="utf-8") as f:
+             f.write(f"Jobs Found: {len(jobs)}\n")
+             f.write(f"Jobs: {str(jobs)}\n")
+        
+        # 3. Send Email
+        send_rejection_email(email, name, jobs)
+    except Exception as e:
+        with open("debug_rejections_v2.log", "a", encoding="utf-8") as f:
+             f.write(f"ERROR: {e}\n")
+        # Fallback: send without jobs
+        send_rejection_email(email, name, [])
+
 @router.post("/invite/candidate/{cid}")
 async def invite_candidate(cid: str, action: str = None, background_tasks: BackgroundTasks = BackgroundTasks()):
     candidate = get_candidate(cid)
@@ -180,9 +209,10 @@ async def invite_candidate(cid: str, action: str = None, background_tasks: Backg
         update_candidate_status(cid, "Shortlist Sent")
         msg = "Shortlist 'Next Round' email queued."
     elif status == 'Rejected':
-        background_tasks.add_task(send_rejection_email, email, candidate['name'])
+        # Use new flow with job suggestions
+        background_tasks.add_task(background_rejection_flow, email, candidate['name'], candidate['resume_text'])
         update_candidate_status(cid, "Reject Sent")
-        msg = "Rejection email queued."
+        msg = "Rejection email with job suggestions queued."
     else:
         # Waitlist or Default -> Send AI Interview Invite
         background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)

@@ -93,31 +93,34 @@ Generate ONLY the conversational response/next question. Do not output JSON.
 """
 
 # 3. Grading Prompt
+# 3. Grading Prompt
 GRADING_INSTRUCTION = """
-You are a benevolent Technical Mentor grading an interview answer. Be generous and lenient.
-Your goal is to give high scores unless the answer is completely wrong.
+You are a Strict Senior Technical Interviewer. 
+Your goal is to evaluate the candidate's answer with high standards.
+Do NOT be lenient. We are hiring for a competitive role.
 
 Question: {question}
 Candidate Answer: {answer}
 
-GRADING RUBRIC (LENIENT MODE):
-- Score 5-6: Answer is minimal, vague, or "I don't know" (but honesty gets points).
-- Score 7-8: Basic understanding, even if missing details.
-- Score 9-10: Good, correct answer. (Perfect depth not required for 10).
+GRADING RUBRIC (STRICT MODE):
+- Score 0-3: Wrong answer, hallucination, or "I don't know".
+- Score 4-6: Surface-level knowledge, correct buzzwords but missing depth.
+- Score 7-8: Good answer, correct technical details, clear explanation.
+- Score 9-10: Exceptional. Shows deep understanding, practical nuance, or edge cases.
 
 Task:
 Evaluate the answer for:
-1. Technical Accuracy (Is it correct?)
-2. Depth (Is it superficial or deep?)
-3. Clarity (Is it easy to understand?)
+1. Technical Accuracy (Is it strictly correct?)
+2. Depth (Does it go beyond the basics?)
+3. Clarity (Is it concise and professional?)
 
 Output JSON only:
 {{
   "score": <0-10 float>,
-  "feedback": "One sentence feedback on what was good or bad.",
-  "strength": "What specific technical concept they understood",
-  "gap": "What they missed or got wrong",
-  "improvement": "Specific advice to improve this answer"
+  "feedback": "Concise, critical feedback.",
+  "strength": "Specific technical concept demonstrated (if any)",
+  "gap": "Missing concepts or inaccuracies",
+  "improvement": "What would make this a 10/10 answer?"
 }}
 """
 

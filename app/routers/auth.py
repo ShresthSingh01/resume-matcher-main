@@ -75,3 +75,11 @@ async def logout():
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("session_token")
     return response
+
+@router.get("/verify")
+async def verify_session(user: str = Depends(get_current_user)):
+    """
+    Simple endpoint to verify if the session token is valid.
+    get_current_user will raise 401 if invalid.
+    """
+    return {"status": "active", "user": user}

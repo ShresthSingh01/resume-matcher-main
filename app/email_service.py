@@ -8,7 +8,7 @@ SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
-BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+BASE_URL = os.getenv("BASE_URL", "http://localhost:3000")
 
 def _send_email(to_email, subject, body):
     if not SMTP_USERNAME or not SMTP_PASSWORD:
@@ -37,7 +37,7 @@ def send_interview_invite(candidate_email: str, candidate_name: str, candidate_i
     """
     WAITLIST / INTERVIEW: Sends AI Interview Invite.
     """
-    interview_link = f"{BASE_URL}/interview/start?candidate_id={candidate_id}"
+    interview_link = f"{BASE_URL}/candidate?candidate_id={candidate_id}"
     subject = "Next Step in Your Application Process: Invitation to AI Interview"
     body = f"""
     Hi {candidate_name},
@@ -67,16 +67,26 @@ def send_shortlist_email(candidate_email: str, candidate_name: str):
     """
     _send_email(candidate_email, subject, body)
 
-def send_rejection_email(candidate_email: str, candidate_name: str):
+def send_rejection_email(candidate_email: str, candidate_name: str, job_suggestions: list = []):
     """
-    REJECTED: Better luck next time.
+    REJECTED: Better luck next time + Job Suggestions.
     """
     subject = "Update on your application"
+    
+    jobs_section = ""
+    if job_suggestions and len(job_suggestions) > 0:
+        jobs_section = "\n\n    Here are some other opportunities that might be a great fit for your profile:\n"
+        for job in job_suggestions:
+            title = job.get('title', 'Job Opening')
+            company = job.get('company', 'Unknown Company')
+            link = job.get('url', '#')
+            jobs_section += f"    - {title} at {company}: {link}\n"
+    
     body = f"""
     Hi {candidate_name},
     Thank you for taking the time to apply to Virex and for your interest in joining our team.
     After careful review, we’ve decided to proceed with other candidates for this role at this time. This decision was not easy, and we truly appreciate the effort and thought you put into your application.
-    We were glad to learn more about your background, and we encourage you to stay connected with us and apply again in the future as new opportunities arise. We wish you all the best in your continued journey.
+    We were glad to learn more about your background, and we encourage you to stay connected with us and apply again in the future as new opportunities arise. We wish you all the best in your continued journey.{jobs_section}
     Warm regards,
     The Hiring Team Virex
     """

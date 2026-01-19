@@ -19,8 +19,20 @@ export default function DashboardPage() {
     uploadResumes,
     inviteCandidate,
     clearLeaderboard,
-    logout
+    logout,
+    isVerifying
   } = useDashboard();
+
+  if (isVerifying) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-cyan-500 border-t-transparent"></div>
+          <p className="font-mono text-sm text-cyan-400 animate-pulse">Verifying Access...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

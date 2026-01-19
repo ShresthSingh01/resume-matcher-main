@@ -120,7 +120,7 @@ async def process_upload_job(
                 matched_skills=matched_list,
                 missing_skills=missing_list,
                 resume_evaluation=output.model_dump(),
-                status="Shortlisted" if output.decision == "Strong Match" else ("Rejected" if "Reject" in output.decision else "Matched"),
+                status="Shortlisted" if output.decision == "Strong Match" else ("Waitlisted" if output.interview_required else ("Rejected" if "Reject" in output.decision else "Matched")),
                 recruiter_username=recruiter_username
             )
             results_list.append({"candidate_id": cid, "status": "success", "filename": source["filename"]})

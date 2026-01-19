@@ -9,6 +9,12 @@ from app.tts import TTSManager
 router = APIRouter()
 tts_manager = TTSManager()
 
+from fastapi.responses import RedirectResponse
+
+@router.get("/interview/start")
+async def redirect_interview_start(candidate_id: str):
+    return RedirectResponse(f"http://localhost:3000/candidate?candidate_id={candidate_id}")
+
 @router.post("/interview/start")
 async def start_interview(payload: StartInterviewRequest, request: Request):
     try:
@@ -185,11 +191,16 @@ async def speak_text(payload: dict):
 async def flag_violation(req: FlagRequest):
     session = interview_manager.get_session(req.session_id)
     if not session or not session.candidate_id:
-         # Log even if session not found? Safe to ignore for now
          return {"status": "ignored"}
     
-    flag_candidate(session.candidate_id, req.reason)
-    return {"status": "flagged"}
+    count = flag_candidate(session.candidate_id, req.reason)
+    
+    if count >= 3:
+        update_candidate_status(session.candidate_id, "Terminated")
+         # Optionally clear session or mark inactive in DB
+        return {"status": "terminated", "msg": "Maximum violations exceeded."}
+
+    return {"status": "flagged", "warning_count": count, "limit": 3}
 
 @router.post("/interview/terminate")
 async def terminate_interview(req: FlagRequest):

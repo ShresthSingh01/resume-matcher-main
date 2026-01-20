@@ -34,10 +34,22 @@ async def start_interview(payload: StartInterviewRequest, request: Request):
             # BLOCK RESTART LOGIC
             current_status = (candidate.get('status') or "").lower()
             
-            # 1. Permanent Final States
-            forbidden_statuses = ['shortlisted', 'rejected', 'terminated', 'completed']
+            # 1. Permanent Final States - STRICT BLOCK
+            forbidden_statuses = ['shortlisted', 'rejected', 'terminated', 'completed', 'selected']
             if any(s in current_status for s in forbidden_statuses):
-                raise HTTPException(status_code=403, detail="Interview already completed or terminated.")
+                 # One exception: If they are 'shortlisted' BUT haven't started (no session), we allow.
+                 # Actually, 'Shortlisted' is the entry state. We should NOT block 'Shortlisted'.
+                 # We block 'Selected' (passed), 'Rejected' (failed), 'Terminated' (cheated), 'Completed' (finished).
+                 
+                 # Refined Logic:
+                 is_done = False
+                 for fs in ['selected', 'rejected', 'terminated', 'completed']:
+                     if fs in current_status:
+                         is_done = True
+                         break
+                 
+                 if is_done:
+                     raise HTTPException(status_code=403, detail="Interview already completed or terminated.")
 
             # 2. Active State (Interviewing)
             # If they are "Interviewing", we ONLY allow entry if it's a valid Resume (Cookie Match).

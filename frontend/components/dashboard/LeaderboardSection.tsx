@@ -69,6 +69,9 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         } else if (s.includes("shortlist")) {
             actionLabel = "Invite to Interview";
             // Keep primary blue/purple for invite
+        } else if (s.includes("interviewing") || s.includes("active")) {
+            actionLabel = "In Progress";
+            btnClass = "btn bg-amber-500/10 text-amber-500 border border-amber-500/20 cursor-wait text-xs py-1 px-4";
         }
 
         return (

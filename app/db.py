@@ -12,9 +12,40 @@ from datetime import datetime
 def get_db_session():
     return SessionLocal()
 
+def run_migrations():
+    """
+    Lightweight auto-migration to add missing columns.
+    """
+    session = get_db_session()
+    try:
+        from sqlalchemy import text
+        # Check Candidate table
+        try:
+            session.execute(text("SELECT interview_enabled FROM candidates LIMIT 1"))
+        except Exception:
+            print("⚠️ Migration: Adding 'interview_enabled' to candidates table...")
+            session.rollback()
+            session.execute(text("ALTER TABLE candidates ADD COLUMN interview_enabled BOOLEAN DEFAULT 1"))
+            session.commit()
+            
+        # Check UploadJob table
+        try:
+            session.execute(text("SELECT interview_enabled FROM upload_jobs LIMIT 1"))
+        except Exception:
+            print("⚠️ Migration: Adding 'interview_enabled' to upload_jobs table...")
+            session.rollback()
+            session.execute(text("ALTER TABLE upload_jobs ADD COLUMN interview_enabled BOOLEAN DEFAULT 1"))
+            session.commit()
+            
+    except Exception as e:
+        print(f"Migration Error: {e}")
+    finally:
+        session.close()
+
 def init_db():
     # In production, use Alembic. For now, we can ensure tables exist.
     Base.metadata.create_all(bind=engine)
+    run_migrations() # Run auto-migration
     print("✅ Database initialized (SQLAlchemy)")
 
 def clear_db():
@@ -32,7 +63,7 @@ def clear_db():
 
 # --- Candidate Functions ---
 
-def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matched_skills: list, missing_skills: list, resume_evaluation: dict = {}, status: str = "Matched", recruiter_username: str = None) -> str:
+def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matched_skills: list, missing_skills: list, resume_evaluation: dict = {}, status: str = "Matched", recruiter_username: str = None, interview_enabled: bool = True, final_score: float = 0.0) -> str:
     session = get_db_session()
     try:
         cid = str(uuid.uuid4())
@@ -47,8 +78,9 @@ def add_candidate(name: str, resume_text: str, jd: str, match_score: float, matc
             missing_skills=json.dumps(missing_skills),
             resume_evaluation_data=json.dumps(resume_evaluation),
             recruiter_username=recruiter_username,
+            interview_enabled=interview_enabled,
             interview_score=0.0,
-            final_score=0.0,
+            final_score=final_score,
             feedback_data="{}"
         )
         session.add(new_candidate)

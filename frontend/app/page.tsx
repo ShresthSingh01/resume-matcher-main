@@ -86,7 +86,14 @@ export default function DashboardPage() {
         )}
 
         {view === "upload" ? (
-          <UploadSection onUpload={uploadResumes} loading={loading} />
+          <UploadSection
+            onUpload={uploadResumes}
+            loading={loading}
+            onComplete={() => {
+              fetchCandidates();
+              setView("leaderboard");
+            }}
+          />
         ) : (
           <LeaderboardSection
             candidates={candidates}

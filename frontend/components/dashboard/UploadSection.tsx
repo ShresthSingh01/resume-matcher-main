@@ -4,14 +4,16 @@ import { useState, useEffect } from "react";
 import { IoCloudUploadOutline, IoDocumentTextOutline, IoBriefcaseOutline, IoArrowForwardOutline, IoOptionsOutline, IoCheckmarkCircleOutline } from "react-icons/io5";
 
 interface UploadSectionProps {
-    onUpload: (files: FileList, jd: string, template: string) => Promise<string | null>; // Returns Job ID
+    onUpload: (files: FileList, jd: string, template: string, enableInterview: boolean) => Promise<string | null>; // Returns Job ID
     loading: boolean; // Initial submit loading
+    onComplete: () => void;
 }
 
-export default function UploadSection({ onUpload, loading }: UploadSectionProps) {
+export default function UploadSection({ onUpload, loading, onComplete }: UploadSectionProps) {
     const [files, setFiles] = useState<FileList | null>(null);
     const [jd, setJd] = useState("");
     const [template, setTemplate] = useState("auto");
+    const [enableInterview, setEnableInterview] = useState(true); // Default true
 
     // Async Job State
     const [jobId, setJobId] = useState<string | null>(null);
@@ -35,9 +37,10 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
 
                     if (data.status === "completed") {
                         clearInterval(interval);
-                        // Trigger refresh? passed as prop or handled by parent?
-                        // For now just show completion state
-                        window.location.reload(); // Simple refresh to show leaderboard
+                        // Show success state for 3 seconds before switching view
+                        setTimeout(() => {
+                            onComplete();
+                        }, 3000);
                     }
                 }
             } catch (e) {
@@ -46,7 +49,7 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [jobId, status]);
+    }, [jobId, status, onComplete]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -54,7 +57,7 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
             alert("Please provide at least one resume and a Job Description.");
             return;
         }
-        const id = await onUpload(files, jd, template);
+        const id = await onUpload(files, jd, template, enableInterview);
         if (id) {
             setJobId(id);
             setTotal(files.length);
@@ -154,20 +157,45 @@ export default function UploadSection({ onUpload, loading }: UploadSectionProps)
 
                         <div className="mt-6 pt-4 border-t border-[var(--border-color)]">
                             <label className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                                <IoOptionsOutline /> Evaluation Template
+                                <IoOptionsOutline /> Evaluation Settings
                             </label>
-                            <div className="relative">
-                                <select
-                                    value={template}
-                                    onChange={(e) => setTemplate(e.target.value)}
-                                    className="w-full appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]/50 p-3 pr-10 font-medium text-[var(--text-main)] focus:border-blue-500 focus:outline-none"
-                                >
-                                    <option value="auto">✨ Auto-Detect (AI)</option>
-                                    <option value="intern">🎓 Intern / Fresher</option>
-                                    <option value="junior">👨‍💻 Junior / Mid Level</option>
-                                    <option value="senior">🚀 Senior / Lead</option>
-                                </select>
-                                <div className="pointer-events-none absolute right-4 top-3.5 text-[var(--text-secondary)]">▼</div>
+
+                            <div className="flex flex-col gap-4">
+                                {/* Template Selector */}
+                                <div className="relative">
+                                    <select
+                                        value={template}
+                                        onChange={(e) => setTemplate(e.target.value)}
+                                        className="w-full appearance-none rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]/50 p-3 pr-10 font-medium text-[var(--text-main)] focus:border-blue-500 focus:outline-none text-sm"
+                                    >
+                                        <option value="auto">✨ Auto-Detect (AI)</option>
+                                        <option value="intern">🎓 Intern / Fresher</option>
+                                        <option value="junior">👨‍💻 Junior / Mid Level</option>
+                                        <option value="senior">🚀 Senior / Lead</option>
+                                    </select>
+                                    <div className="pointer-events-none absolute right-4 top-3.5 text-[var(--text-secondary)]">▼</div>
+                                </div>
+
+                                {/* AI Interview Toggle */}
+                                <div className="flex items-center justify-between p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]/30 hover:bg-[var(--bg-primary)]/50 transition-colors">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-[var(--text-main)]">AI Interview Agent</h3>
+                                        <p className="text-xs text-[var(--text-secondary)]">
+                                            {enableInterview
+                                                ? "Active: 60% Interview / 40% Resume"
+                                                : "Disabled: 100% Resume Score Only"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEnableInterview(!enableInterview)}
+                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${enableInterview ? "bg-blue-600" : "bg-gray-600"}`}
+                                    >
+                                        <span
+                                            className={`${enableInterview ? "translate-x-6" : "translate-x-1"} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+                                        />
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

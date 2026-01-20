@@ -1,0 +1,35 @@
+Saving 0 valid candidates to DB...
+Job 0baba8f3-714c-4a80-8192-905a7d5b7a1c Completed.
+Received 4 files.
+Parsed 4 resumes successfully.
+Saving 0 valid candidates to DB...
+Job 0053771d-dc19-44a8-bf7b-f8b3e2354b60 Completed.
+Received 4 files.
+Parsed 4 resumes successfully.
+❌ Matcher Bulk Eval Error: Error code: 402 - {'error': {'message': 'This request requires more credits, or fewer max_tokens. You requested up to 4000 tokens, but can only afford 3123. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account', 'code': 402, 'metadata': {'provider_name': None}}, 'user_id': 'user_38Imx2dwZDaMBAlp4yNUxF2O17j'}
+Saving 0 valid candidates to DB...
+Job 1a759e9c-e063-4fd3-ba2f-24119ead1cb2 Completed.
+Received 4 files.
+Parsed 4 resumes successfully.
+Saving 4 valid candidates to DB...
+✅ Saved candidate 10942aae-0b68-4d52-b5dc-8d82c310a4f6 (Shresth.pdf)
+✅ Saved candidate 41b8f04f-c718-416e-a5d5-1c09d8f26d91 (Kartik.pdf)
+✅ Saved candidate a674611c-0649-45b3-ae0d-3c1cb968f536 (Shree.pdf)
+✅ Saved candidate 1cc10d06-117c-4340-acc8-a0d72a446390 (Shresth.pdf)
+Job 4f5446aa-a742-4dc5-a5f9-ce03fe2e2349 Completed.
+Received 4 files.
+Parsed 4 resumes successfully.
+Saving 4 valid candidates to DB...
+✅ Saved candidate 07a3c2ad-070d-46ff-a810-46eef2eedfa4 (Shresth.pdf)
+✅ Saved candidate 63d19efa-403e-407f-941e-ea439d1742ea (Kartik.pdf)
+✅ Saved candidate 88542368-ec12-4941-99d4-78a6e00f87b3 (Shree.pdf)
+✅ Saved candidate e454dc05-5b9f-4c9c-b413-57992f7d9cfa (Mayank.pdf)
+Job 17c3287b-d728-4d3d-a490-2441207af368 Completed.
+Received 4 files.
+Parsed 4 resumes successfully.
+Saving 4 valid candidates to DB...
+✅ Saved candidate 348740e4-5f99-44f3-b7f8-2fa70ce55662 (Shresth.pdf)
+✅ Saved candidate 08dece07-31dc-429a-854e-4d05e0991556 (Kartik.pdf)
+✅ Saved candidate 68e18efb-5592-4201-af26-ddf0add9d0e4 (Shree.pdf)
+✅ Saved candidate 420c6034-b2be-4271-8283-f62327678352 (Mayank.pdf)
+Job a1983f9f-8623-4905-af92-53bc81e06992 Completed.

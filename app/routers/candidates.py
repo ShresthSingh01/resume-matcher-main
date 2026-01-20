@@ -74,6 +74,7 @@ async def upload_resume(
     job_description: str = Form(None),
     jd_file: UploadFile = File(None),
     template_mode: str = Form("auto"),
+    enable_interview: bool = Form(True), # New Flag
     background_tasks: BackgroundTasks = BackgroundTasks(),
     user: str = Depends(get_current_user)
 ):
@@ -102,7 +103,8 @@ async def upload_resume(
                 recruiter_username=user,
                 total_files=len(resumes),
                 processed_count=0,
-                status="queued"
+                status="queued",
+                interview_enabled=enable_interview # Store flag
             )
             session.add(new_job)
             session.commit()
@@ -201,8 +203,16 @@ async def invite_candidate(cid: str, action: str = None, background_tasks: Backg
              # Or just let it fall through to else
              pass
 
-    if "sent" in status.lower() or "selected" in status.lower():
+    if "sent" in status.lower():
          return {"message": f"Action already taken for this candidate (Status: {status})"}
+
+    # Handle 'Selected' (from Interview) OR 'Selected (Resume)' (from Resume Only)
+    if "selected" in status.lower() and "sent" not in status.lower():
+        # HR Decision: Select for Next Round (Hiring)
+        # MANUAL TRIGGER: Send Email
+        background_tasks.add_task(send_shortlist_email, email, candidate['name'])
+        update_candidate_status(cid, "Selected (Email Sent)") 
+        return {"message": "Candidate selected for Next Round. Email queued."}
 
     if status == 'Shortlisted':
         # New Flow: Shortlisted means "Passed Resume Screen" -> Send Interview Invite
@@ -213,13 +223,13 @@ async def invite_candidate(cid: str, action: str = None, background_tasks: Backg
     elif status == 'Interviewed' or status == 'Completed':
         # HR Decision: Select for Next Round
         background_tasks.add_task(send_shortlist_email, email, candidate['name'])
-        update_candidate_status(cid, "Selected") # Final "Hired/Next Round" status
+        update_candidate_status(cid, "Selected (Email Sent)")
         msg = "Candidate selected for Next Round. Email queued."
         
-    elif status == 'Rejected':
-        # Use new flow with job suggestions
+    elif "reject" in status.lower():
+        # MANUAL TRIGGER: Send Email
         background_tasks.add_task(background_rejection_flow, email, candidate['name'], candidate['resume_text'])
-        update_candidate_status(cid, "Reject Sent")
+        update_candidate_status(cid, "Rejected (Email Sent)")
         msg = "Rejection email with job suggestions queued."
     else:
         # Fallback for any old "Waitlisted" or "Pending" - Default to Interview Invite if not Rejected

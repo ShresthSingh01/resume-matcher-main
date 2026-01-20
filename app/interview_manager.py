@@ -244,7 +244,10 @@ class InterviewManager:
         
         # New Threshold: 60% Total Score
         threshold = 60.0
-        new_status = "Selected" if final_score >= threshold else "Rejected"
+        # MANUAL REVIEW MODE:
+        # Instead of Auto-Reject/Select, lay them all as "Interviewed"
+        # The recruiter will sort by score on the leaderboard and decide.
+        new_status = "Interviewed"
 
         if session.candidate_id and session.candidate_id != "unknown":
              # Check for Anti-Cheating Flags

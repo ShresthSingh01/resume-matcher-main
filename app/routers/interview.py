@@ -42,8 +42,10 @@ async def start_interview(payload: StartInterviewRequest, request: Request):
                  # We block 'Selected' (passed), 'Rejected' (failed), 'Terminated' (cheated), 'Completed' (finished).
                  
                  # Refined Logic:
+                 current_status = current_status.lower()
                  is_done = False
-                 for fs in ['selected', 'rejected', 'terminated', 'completed']:
+                 # 'interviewed' is the new neutral completion state.
+                 for fs in ['selected', 'rejected', 'terminated', 'completed', 'interviewed']:
                      if fs in current_status:
                          is_done = True
                          break
@@ -186,22 +188,25 @@ async def get_result(request: InterviewResultRequest, background_tasks: Backgrou
                  # So we just check if "sent" is in status.
                  
                  if "sent" not in status.lower():
-                     if decision == "Selected":
-                        from app.email_service import send_shortlist_email
+                     if decision == "Interviewed":
+                         # Neutral Completion State
+                         from app.db import update_candidate_status
+                         update_candidate_status(session.candidate_id, "Interviewed")
+                         result["decision_msg"] = "Interview Complete. Your results have been submitted for review. (Status: Interviewed)"
+
+                     elif decision == "Selected":
                         from app.db import update_candidate_status
                         
-                        background_tasks.add_task(send_shortlist_email, email, name)
-                        update_candidate_status(session.candidate_id, "Selected (Email Sent)")
-                        result["decision_msg"] = "Congratulations! You have been selected for the next round. Check your email."
+                        # MANUAL MODE: No email sent automatically
+                        update_candidate_status(session.candidate_id, "Selected")
+                        result["decision_msg"] = "Congratulations! You have been selected for the next round. (Manual Email Required)"
                         
                      elif decision == "Rejected":
-                        from app.routers.candidates import background_rejection_flow
                         from app.db import update_candidate_status
                         
-                        # We pass resume text for job matching
-                        background_tasks.add_task(background_rejection_flow, email, name, candidate['resume_text'])
-                        update_candidate_status(session.candidate_id, "Rejected (Email Sent)")
-                        result["decision_msg"] = "Thank you for your time. Your application update has been sent to your email."
+                        # MANUAL MODE: No email sent automatically
+                        update_candidate_status(session.candidate_id, "Rejected")
+                        result["decision_msg"] = "Thank you for your time. Application status updated. (Manual Email Required)"
 
         logger.info(f"DEBUG: Result Payload: {result}")
         return result

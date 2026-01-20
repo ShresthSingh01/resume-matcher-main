@@ -19,6 +19,7 @@ class Candidate(Base):
     missing_skills = Column(Text, default="[]") # JSON string
     resume_evaluation_data = Column(Text, default="{}")
     flags = Column(Text, default="[]")
+    interview_enabled = Column(Boolean, default=True) # New Flag
     recruiter_username = Column(String, ForeignKey("recruiters.username"))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -30,6 +31,7 @@ class UploadJob(Base):
     total_files = Column(Integer, default=0)
     processed_count = Column(Integer, default=0)
     status = Column(String, default="processing") # processing, completed, failed
+    interview_enabled = Column(Boolean, default=True) # New Flag
     results = Column(Text, default="[]") # Store JSON list of candidate_ids or errors
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

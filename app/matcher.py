@@ -533,5 +533,6 @@ async def evaluate_resumes_bulk(
 
     except Exception as e:
         logger.error(f"Bulk Eval Error: {e}")
+        with open("jobs_debug.log", "a", encoding="utf-8") as f: f.write(f"❌ Matcher Bulk Eval Error: {e}\n")
         return []
 

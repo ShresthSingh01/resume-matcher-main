@@ -68,7 +68,7 @@ export function useDashboard() {
         }
     }, []);
 
-    const uploadResumes = async (files: FileList, jdText: string, templateMode: string) => {
+    const uploadResumes = async (files: FileList, jdText: string, templateMode: string, enableInterview: boolean) => {
         try {
             setLoading(true);
             const formData = new FormData();
@@ -77,6 +77,7 @@ export function useDashboard() {
             }
             formData.append("job_description", jdText);
             formData.append("template_mode", templateMode);
+            formData.append("enable_interview", String(enableInterview));
 
             const res = await fetch("/api/upload", {
                 method: "POST",

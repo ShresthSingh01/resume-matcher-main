@@ -11,10 +11,13 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
 BASE_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 def _send_email(to_email, subject, body):
+    with open("email_debug.log", "a", encoding="utf-8") as f:
+        f.write(f"--- Sending Email ---\nTo: {to_email}\nSubject: {subject}\n")
+
     if not SMTP_USERNAME or not SMTP_PASSWORD:
-        print(f"⚠️ Email Config Missing. Skipping email to {to_email}.")
-        print(f"Subject: {subject}")
-        print(f"Body: {body[:100]}...")
+        msg = f"⚠️ Email Config Missing. Skipping email to {to_email}."
+        print(msg)
+        with open("email_debug.log", "a", encoding="utf-8") as f: f.write(msg + "\n")
         return
 
     msg = MIMEMultipart()
@@ -30,8 +33,10 @@ def _send_email(to_email, subject, body):
         server.sendmail(SMTP_USERNAME, to_email, msg.as_string())
         server.quit()
         print(f"✅ Email sent to {to_email}")
+        with open("email_debug.log", "a", encoding="utf-8") as f: f.write(f"✅ Success: Email sent to {to_email}\n")
     except Exception as e:
         print(f"❌ Failed to send email to {to_email}: {e}")
+        with open("email_debug.log", "a", encoding="utf-8") as f: f.write(f"❌ Error: {e}\n")
 
 def send_interview_invite(candidate_email: str, candidate_name: str, candidate_id: str):
     """

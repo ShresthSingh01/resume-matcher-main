@@ -35,7 +35,9 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         const s = (c.status || "").toLowerCase();
 
         // If action already taken (email sent), show disabled state
-        if (s.includes("sent") || s.includes("invited") || s.includes("selected")) {
+        // EXCEPTION: "Selected (Resume)" or "Rejected (Resume)" are pending manual confirmation
+        const isResumeDecision = s.includes("(resume)");
+        if ((s.includes("sent") || s.includes("invited") || s.includes("selected")) && !isResumeDecision) {
             let label = "Invited";
             if (s.includes("reject")) label = "Rejection Sent";
             else if (s.includes("selected") || s.includes("solicited") || s === "shortlist sent") label = "Next Round Sent";
@@ -55,17 +57,18 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         let btnClass = "btn btn-primary text-xs py-1 px-4 flex items-center gap-2";
 
         if (s.includes("reject")) {
-            actionLabel = "Rejection";
+            actionLabel = "Send Rejection"; // Changed from Rejection
             btnClass = "btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-red-500 shadow-sm";
         } else if (s.includes("interviewed")) {
-            // This state shouldn't theoretically happen often now as DB updates to Selected/Rejected immediately
-            // But if it does (e.g. failure), show 'Processing' or 'View Result'
-            actionLabel = "View Result";
-            btnClass = "btn btn-secondary text-xs py-1 px-4 flex items-center gap-2";
-        } else if (s.includes("selected") || s.includes("completed")) {
-            // Already handled by top check, but safe fallback
-            actionLabel = "Selected (Auto)";
-            btnClass = "btn bg-emerald-600/50 cursor-not-allowed text-white text-xs py-1 px-4";
+            // New neutral state: Interview Done. Recruiter must decide.
+            // Action is to Open Modal (which sends email eventually) OR just Sends Result Email directly?
+            // User says "View Result button send mail", so we rename it to "Send Result".
+            actionLabel = "Send Result";
+            btnClass = "btn btn-primary text-xs py-1 px-4 flex items-center gap-2";
+        } else if (s.includes("selected")) {
+            // Must be Selected (Resume) or similar pending
+            actionLabel = "Send Next Round";
+            btnClass = "btn bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1 px-4 shadow-sm";
         } else if (s.includes("shortlist")) {
             actionLabel = "Invite to Interview";
             // Keep primary blue/purple for invite
@@ -117,6 +120,7 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
                                 <th className="p-4 font-semibold uppercase tracking-wider text-xs">Name</th>
                                 <th className="p-4 font-semibold uppercase tracking-wider text-xs">Match Rating</th>
                                 <th className="p-4 font-semibold uppercase tracking-wider text-xs">Interview</th>
+                                <th className="p-4 font-semibold uppercase tracking-wider text-xs">Final Score</th>
                                 <th className="p-4 font-semibold uppercase tracking-wider text-xs">Status</th>
                                 <th className="p-4 font-semibold uppercase tracking-wider text-xs">Actions</th>
                             </tr>
@@ -124,7 +128,7 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
                         <tbody className="divide-y divide-[var(--border-color)] bg-[var(--bg-secondary)]">
                             {candidates.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="p-16 text-center text-[var(--text-secondary)] font-light">
+                                    <td colSpan={7} className="p-16 text-center text-[var(--text-secondary)] font-light">
                                         No candidates found.<br />Upload resumes to populate the leaderboard.
                                     </td>
                                 </tr>
@@ -146,6 +150,13 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
                                     <td className="p-4 font-mono">
                                         {c.interview_score > 0 ? (
                                             <span className="font-bold text-emerald-500">{c.interview_score}/100</span>
+                                        ) : (
+                                            <span className="text-[var(--text-muted)]">-</span>
+                                        )}
+                                    </td>
+                                    <td className="p-4 font-mono">
+                                        {c.final_score > 0 ? (
+                                            <span className="font-bold text-violet-400">{c.final_score}/100</span>
                                         ) : (
                                             <span className="text-[var(--text-muted)]">-</span>
                                         )}

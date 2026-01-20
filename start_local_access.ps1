@@ -96,3 +96,5 @@ Write-Host "`nIMPORTANT NEXT STEPS:" -ForegroundColor Yellow
 Write-Host "1. STOP your currently running 'npm run dev' and 'uvicorn' terminals."
 Write-Host "2. RESTART them to pick up the new .env changes."
 Write-Host "3. Open $publicUrl/candidate?... on your device."
+Write-Host "4. READ PRESENTATION_GUIDE.md for verification steps!" -ForegroundColor Cyan
+Start-Process "PRESENTATION_GUIDE.md"

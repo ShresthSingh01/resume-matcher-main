@@ -1,174 +1,111 @@
 # 🧠 Virex AI - Intelligent Recruitment & Interview Platform
 
-**Virex AI** is a comprehensive recruitment automation system that standardizes the hiring process. It replaces subjective resume screening with a deterministic, template-based evaluation engine and an adaptive AI interviewer.
-
-## 🌟 Key Features
-
-## 🌟 Key Features & Scoring Logic
-
-### 1. 🔍 Structured "Virex" Resume Evaluation
-Unlike simple keyword matching, Virex uses a **Deterministic Weighted Scoring Engine** enhanced by **Precision Skill Validation**.
-*   **Exact-Match Extraction**: The system uses strict regex boundaries to validate skills, ensuring no false positives (e.g., correctly distinguishing "Java" from "JavaScript" or "C" from "C++").
-
-#### **A. The Likert Scale (1-5)**
-Every parameter (Education, Experience, Skills, Projects, Certifications) is evaluated on a strict 1-5 scale:
-*   **1 (Poor)**: No evidence found or largely irrelevant.
-*   **2 (Fair)**: Minimal match, potential gaps, or only adjacent skills present.
-*   **3 (Good)**: Meets the core requirements of the Job Description.
-*   **4 (Very Good)**: Exceeds requirements, strong evidence of expertise.
-*   **5 (Exceptional)**: Perfect match, demonstrates leadership or elite achievements.
-
-#### **B. Role-Specific Weighting**
-A "3/5" in Experience matters more for a Senior dev than an Intern. We apply purely mathematical weights:
-
-| Parameter | 🎓 Intern/Fresher | 👨‍💻 Junior/Mid | 🚀 Senior/Lead |
-| :--- | :---: | :---: | :---: |
-| **Education** | **35%** | 20% | 10% |
-| **Experience** | 5% | **25%** | **45%** |
-| **Skills** | **25%** | **30%** | 30% |
-| **Projects** | **25%** | 15% | 5% |
-| **Certs** | 10% | 10% | 10% |
-
-**Resume Score Calculation**:
-`Resume Score = (Sum(Parameter Score × Weight)) × 20` _(Normalized to 0-100)_
-
-### 2. ⚡ Automated Decision Workflow
-The system buckets candidates based on their Resume Score, dynamically updating the **"Action Button"** on the dashboard:
-*   **🟢 Shortlisted (Score > 75%)**: High probability of hire. Button: **"Next Round"** (Triggers onboarding/final interview).
-*   **🟠 Waitlisted (Score 45-75%)**: Good profile but missing signals. Button: **"Invite to Interview"** (Sends AI Interview link).
-*   **🔴 Rejected (Score < 45%)**: Does not meet criteria. Button: **"Send Rejection"** (Triggers polite decline email).
-
-### 3. 🤖 Adaptive AI Interviewer & Final Scoring
-Candidates on the waitlist can "earn" a shortlist spot through the AI Interview.
-
-#### **A. Interview Grading (0-10 Scale)**
-The AI evaluates every answer in real-time based on:
-1.  **Technical Correctness**: Is the answer factually right?
-2.  **Depth**: Did they explain *how* and *why*, or just recite definitions?
-3.  **Clarity**: Communication style and detailed examples.
-
-#### **B. The "Promotion" Algorithm**
-We calculate a **Final Score** to decide if a candidate should be upgraded from Waitlist to Shortlist.
-*   **Formula**: `Final Score = (Resume Score × 0.4) + (Interview Score × 0.6)`
-*   *Why?* We give **60% weight** to the interview. A candidate with a weak resume (e.g., non-traditional background) can still win the job if they perform exceptionally (9/10) in the technical interview.
-
-**Threshold**: If `Final Score >= 70`, the candidate is **Automatically Promoted** to **🟢 Shortlisted**.
-
-### 4. 🛡️ Anti-Cheating & Security Suite
-Virex implements a robust **"3-Ring Defense"** strategy to ensure interview integrity:
-
-#### **Ring 1: Browser Lockdown**
-*   **Fullscreen Enforcement**: Candidates must remain in fullscreen. Exiting triggers a visible "Proctoring Alert".
-*   **Focus Tracking**: Switching tabs or minimizing the window is detected as a violation.
-*   **Input Blocking**: Right-click, Copy, Cut, and Paste actions are disabled to prevent copying questions.
-
-#### **Ring 2: Secondary Device Countermeasures**
-*   **Strict Tymer**: Questions have a tight **40-second limit** to minimize "lookup time".
-*   **Unselectable Text**: Question text cannot be highlighted, preventing easy OCR scanning.
-
-#### **Ring 3: Behavioral Monitoring & Backend Flagging**
-*   **Webcam Presence**: Live "Self-Audit" webcam feed displayed on screen.
-*   **Typing Heuristics**: Detects "Superhuman" typing speeds (instant text injection) and blocks the input.
-*   **Persistent Flagging**: All violations are logged in the database.
-*   **3-Strike Termination**: Upon the 3rd violation, the interview is **Terminated immediately**.
-
-#### **🔒 Permanent Lockout**
-To prevent gaming the system, candidates with the following statuses are **permanently blocked** from restarting or retaking the interview:
-*   `Shortlisted`, `Rejected`, `Terminated`, `Completed`.
-
-### 5. 🔐 Multi-User Secure Workspace
-Designed for collaborative teams, Virex ensures data privacy and efficient workflow management:
-*   **Data Isolation**: Every candidate profile is strictly tagged with the uploader's `recruiter_username`. Recruiters only access the talent pool they source.
-*   **Private Leaderboards**: Your hiring funnel and candidate rankings are isolated, ensuring no data leakage between recruiter accounts.
-
-## 📚 Documentation
-For a comprehensive deep dive into the system logic, detailed verification workflows, and architectural diagrams, please refer to the **[Project Documentation](PROJECT_DOCUMENTATION.md)**.
-
+**Virex AI** is an enterprise-grade recruitment automation system designed to eliminate human bias and inefficiency from the hiring process. It replaces subjective resume screening with a **Deterministic Weighted Scoring Engine** and an **Autonomous AI Interviewer**, providing a complete end-to-end hiring pipeline.
 
 ---
 
-## 📐 System Architecture & Process Flow
+## 📐 System Architecture
 
-[![image](https://image2url.com/r2/default/images/1768766096030-15277cf5-622b-4e68-809c-a883386b0260.png)]({url})
+The system is built on a modern, scalable event-driven architecture:
 
-
----
-
-## 🛠️ Technology Stack
-
-| Component | Technology | Usage |
+| Component | Technology | Role |
 | :--- | :--- | :--- |
-| **Backend** | `FastAPI` (Python) | Async web server, handling parallel LLM requests and WebSocket-like flows. |
-| **Evaluation** | `LangChain` + `Pydantic` | Structured output parsing for strict JSON data enforcement. |
-| **Frontend** | `Next.js` (React) + `TypeScript` | Responsive, component-based UI with Server Side Rendering. |
-| **Database** | `SQLite` | Persistent storage for Candidates, Sessions, and Transcripts. |
-| **AI Models** | `GPT-4o-mini` | Powers the reasoning, resume parsing, and interview generation. |
-| **TTS (Voice)** | `ElevenLabs` / Browser | Text-to-Speech for realistic interview experience. |
+| **Frontend** | `Next.js 14` (React) | Responsive Dashboard, Real-time Interview Interface, Leaderboard. |
+| **Backend** | `FastAPI` (Python) | High-performance Async API, WebSocket management for real-time audio. |
+| **AI Core** | `Google Gemini Pro` | The "Brain" for Resume Parsing, Matching, and Interview Context. |
+| **Voice Engine** | `ElevenLabs` | Ultra-realistic Text-to-Speech (TTS) for the AI Interviewer. |
+| **Database** | `SQLite` (SQLAlchemy) | Relational storage for Candidates, Recruiters, and Interview Sessions. |
+| **Orchestrator** | `LangChain` | Manages LLM chains, structured outputs, and prompt engineering. |
+
+---
+
+## 🔄 System Workflow (Step-by-Step)
+
+### 1. 📤 Intelligent Ingestion
+*   **Action**: Recruiter uploads bulk resumes (PDF/DOCX) and inputs a Job Description (JD).
+*   **Process**: The system uses `pypdf` + **LLM Parsing** to extract structured entities (Skills, Education, Experience) from even the messiest resume formats.
+
+### 2. 🧠 Smart Resume Evaluation (The "Initial Filter")
+Unlike simple keyword matchers, Virex uses a **Structured Likert-Scale Evaluation**:
+the AI rates every candidate on **5 Dimensions (1-5 Scale)**:
+1.  **Education**: (e.g., 5 = Top Tier/Masters, 1 = No Degree)
+2.  **Experience**: (e.g., 5 = Senior Expert, 1 = Junior/None)
+3.  **Skills**: (Semantic match against JD)
+4.  **Projects**: (Complexity and relevance)
+5.  **Certifications**: (Verified credentials)
+
+**The Formula:**
+$$ \text{Resume Score} = \sum (\text{Dimension Score} \times \text{Weight}) $$
+*(Weights are dynamic based on role, e.g., Senior roles weight Experience 45%, Junior roles weight Skills 30%).*
+
+### 3. ⚖️ Automated Decision Logic
+Based on the Resume Score, the system strictly categorizes candidates:
+*   **🔴 Rejected (< 60%)**: Candidate is filtered out.
+*   **🟢 Shortlisted (>= 60%)**: Candidate is **Invited to AI Interview**.
+
+### 4. 🤖 The AI Interview (The "Deep Dive")
+Shortlisted candidates undergo a rigorous technical interview:
+*   **Context Aware**: The AI reads the specific resume and JD to generate unique, challenging questions.
+*   **Real-time Voice**: Interaction happens via voice (Speech-to-Text -> LLM -> Text-to-Speech).
+*   **Anti-Cheating**: Full-screen enforcement, tab-switch detection, and object detection.
+
+### 5. 🏆 The Final Leaderboard
+Recruiters see a final ranked list sorted by a **Composite Score**:
+$$ \text{Final Score} = (\text{Resume Score} \times 40\%) + (\text{Interview Score} \times 60\%) $$
+
+### 6. ✅ Final Decision (Human-in-the-Loop)
+For top candidates (Status: "Interviewed"), the recruiter has two explicit actions:
+*   **Green Button ("Send Invite")**: Triggers the "Next Round" offer email.
+*   **Red Button ("Reject")**: Triggers a polite data-driven rejection email.
+
+---
+
+## 🛡️ Security & Integrity
+
+*   **Session Isolation**: Candidates cannot restart or retry interviews once completed.
+*   **Input Blocking**: Copy/Paste/Right-Click disabled during tests.
+*   **Role-Based Access**: Recruiters data is isolated; they cannot see each other's candidates.
 
 ---
 
 ## 🚀 Installation & Setup
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/your-repo/virex-ai.git
-    cd virex-ai
-    ```
+### Prerequisites
+*   Python 3.10+
+*   Node.js 18+
+*   Google Gemini API Key
 
-2.  **Install Dependencies**
-    ```bash
-    pip install -r requirements.txt
-    ```
+### 1. Clone & Install
+```bash
+git clone https://github.com/your-repo/virex-ai.git
+cd virex-ai
 
-3.  **Configure Environment**
-    Create a `.env` file:
-    ```ini
-    OPENAI_API_KEY=sk-your-key
-    OPENROUTER_API_KEY=sk-your-openrouter-key
-    # Optional for Email
-    SMTP_USERNAME=your-email@gmail.com
-    SMTP_PASSWORD=your-app-password
-    ```
+# Backend
+pip install -r requirements.txt
 
-4.  **Run the Server**
-    ```bash
-    uvicorn app.main:app --reload
-    ```
+# Frontend
+cd frontend
+npm install
+```
 
-5.  **Access the Dashboard**
-    *   Login: `admin` / `admin123`
-    *   URL: [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+### 2. Configure Environment (.env)
+Create a `.env` file in the root:
+```ini
+GOOGLE_API_KEY=your_gemini_key
+ELEVENLABS_API_KEY=your_voice_key
+# Email Config (Optional)
+SMTP_USERNAME=your_email
+SMTP_PASSWORD=your_password
+```
 
-### 6. 🐳 Run with Docker
+### 3. Run the System
+```bash
+# Terminal 1: Backend
+uvicorn app.main:app --reload
 
-Easily spin up the entire stack (Frontend + Backend + Database) using Docker.
+# Terminal 2: Frontend
+cd frontend
+npm run dev
+```
 
-1.  **Ensure Docker is Installed**
-    Make sure you have Docker Desktop (Windows/Mac) or Docker Engine (Linux) installed and running.
-
-2.  **Build and Run**
-    ```bash
-    docker compose up --build
-    ```
-
-3.  **Access the App**
-    *   **Backend API**: [http://localhost:8000/docs](http://localhost:8000/docs)
-    *   **Database**: Accessible on port `5432`
-
-### 7. 🌍 Global Access (Mobile / Public Internet)
-To access the interview session from a mobile device or a different network (Waitlisted Candidates), use the automated **Global Launcher**:
-
-1.  **Prerequisites**:
-    *   Download [ngrok](https://ngrok.com/download) and place `ngrok.exe` in the project root.
-    *   Add your auth token: `.\ngrok config add-authtoken <YOUR_TOKEN>`
-
-2.  **Run the One-Click Script**:
-    ```powershell
-    .\start_global.ps1
-    ```
-    *   This will automatically:
-        *   Start secure tunnels for both Frontend & Backend.
-        *   Update your `.env` file with the public URLs.
-        *   Launch the Docker application.
-    *   **Share the Public Frontend URL** with candidates to allow them to take the interview from anywhere.
-
+Access the Dashboard at: `http://localhost:3000`

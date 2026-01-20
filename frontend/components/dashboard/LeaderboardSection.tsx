@@ -23,6 +23,7 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         if (s.includes("reject")) return "text-red-500";
         if (s.includes("waitlist")) return "text-orange-500";
         if (s.includes("invited")) return "text-purple-500";
+        if (s.includes("terminated")) return "text-red-600 font-extrabold bg-red-100 px-2 py-0.5 rounded";
         return "text-gray-500";
     };
 
@@ -60,11 +61,28 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
             actionLabel = "Send Rejection"; // Changed from Rejection
             btnClass = "btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-red-500 shadow-sm";
         } else if (s.includes("interviewed")) {
-            // New neutral state: Interview Done. Recruiter must decide.
-            // Action is to Open Modal (which sends email eventually) OR just Sends Result Email directly?
-            // User says "View Result button send mail", so we rename it to "Send Result".
-            actionLabel = "Send Result";
-            btnClass = "btn btn-primary text-xs py-1 px-4 flex items-center gap-2";
+            // Dual Buttons for Post-Interview Decision
+            return (
+                <div className="flex gap-2 items-center">
+                    <button onClick={() => onView(c)} className="btn btn-secondary text-xs py-1 px-2" title="View Details">View</button>
+
+                    <button
+                        onClick={() => onInvite(c.id, "invite")}
+                        className="btn bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1 px-3 shadow-sm flex items-center gap-1"
+                        title="Send Invitation / Next Round"
+                    >
+                        <IoMailOutline /> Send Invite
+                    </button>
+
+                    <button
+                        onClick={() => onInvite(c.id, "reject")}
+                        className="btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-3 shadow-sm flex items-center gap-1"
+                        title="Reject Candidate"
+                    >
+                        Reject
+                    </button>
+                </div>
+            );
         } else if (s.includes("selected")) {
             // Must be Selected (Resume) or similar pending
             actionLabel = "Send Next Round";

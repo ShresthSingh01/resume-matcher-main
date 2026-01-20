@@ -133,44 +133,31 @@ class TTSManager:
    
 
     def get_best_voice(self):
-         # Try to find 'Adam', 'Josh' (US Male), 'Rachel' (US Female)
-         try:
-             all_voices = self.client.voices.get_all()
-             
-             for v in all_voices.voices:
-                 if "Adam" in v.name or "Josh" in v.name: return v.voice_id
-             
-             for v in all_voices.voices:
-                 if "Rachel" in v.name: return v.voice_id
-                 
-             return all_voices.voices[0].voice_id
-         except:
-             return "nPczCJZxpgCpKD07lhj7" # Fallback to hardcoded Brian
+         # Hardcoded "Rachel" Voice ID for consistent, professional female interviewer tone.
+         # ID: 21m00Tcm4TlvDq8ikWAM
+         return "21m00Tcm4TlvDq8ikWAM"
 
-    def stream_audio(self, text: str):
+    def generate_audio(self, text: str) -> bytes:
         """
-        Generates audio stream from text using ElevenLabs.
-        Returns a generator yielding bytes.
+        Generates full audio from text using ElevenLabs.
+        Returns bytes (buffered). Raises exception if empty.
         """
         if not self.client:
             raise ValueError("ElevenLabs API Key is missing.")
 
-        try:
-            voice_id = self.get_best_voice()
-            # Updated for ElevenLabs v3+ SDK
-            audio_stream = self.client.text_to_speech.convert(
-                text=text,
-                voice_id=voice_id,
-                model_id="eleven_turbo_v2_5",
-                output_format="mp3_44100_128",
-            )
+        voice_id = self.get_best_voice()
+        # Updated for ElevenLabs v3+ SDK
+        audio_stream = self.client.text_to_speech.convert(
+            text=text,
+            voice_id=voice_id,
+            model_id="eleven_monolingual_v1",
+            output_format="mp3_44100_128",
+        )
+        
+        # Buffer into memory to catch errors immediately
+        audio_data = b"".join(chunk for chunk in audio_stream)
+        
+        if len(audio_data) == 0:
+            raise ValueError("ElevenLabs returned empty audio (Quota Exceeded?).")
             
-            for chunk in audio_stream:
-                yield chunk
-                
-        except Exception as e:
-            # Catch ElevenLabs API errors (Quota exceeded, etc) to prevent server crash
-            print(f"TTS Streaming Error (likely quota or network): {e}")
-            # We treat this as end of stream so frontend just gets what it got (or empty)
-            # The frontend 'useSpeech' should ideally have a timeout or silence fallback.
-            return
+        return audio_data

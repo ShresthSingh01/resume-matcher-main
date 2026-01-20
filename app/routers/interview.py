@@ -63,18 +63,43 @@ async def start_interview(payload: StartInterviewRequest, request: Request):
                     sid = existing_session['session_id']
                     client_cookie = request.cookies.get("interview_session")
                     
+                    # STALENESS CHECK (1 Minute Refresh Window)
+                    import datetime
+                    from dateutil import parser
+                    
+                    last_active = existing_session.get('updated_at') or existing_session.get('created_at')
+                    if last_active:
+                         if isinstance(last_active, str):
+                             try: last_active = parser.parse(last_active)
+                             except: last_active = datetime.datetime.now()
+                         
+                         delta = datetime.datetime.now() - last_active
+                         if delta.total_seconds() > 60: # 1 Minute Timeout
+                              logger.warning(f"Terminating ABANDONED session {sid} (Idle > 60s)")
+                              
+                              # Update DB: Terminated, Interview Score=0, Final Score = Resume Score * 0.4
+                              # We use update_candidate_interview to set scores and status together
+                              term_feedback = {"note": "Session terminated due to abandonment (>1 min timeout)."}
+                              resume_only_score = candidate['match_score'] * 0.4
+                              
+                              from app.db import update_candidate_interview
+                              update_candidate_interview(
+                                  payload.candidate_id, 
+                                  interview_score=0.0, 
+                                  final_score=resume_only_score, 
+                                  feedback=term_feedback, 
+                                  status="Terminated"
+                              )
+                              
+                              raise HTTPException(status_code=403, detail="Interview Terminated. Session abandoned for > 1 minute.")
+
                     if client_cookie == sid:
-                         # Valid Resume: Log and Fall through to existing_session logic below
                          logger.info(f"Resuming authorized session {sid}")
                     else:
-                         # Invalid Resume: Block
-                         logger.warning(f"Blocked unauthorized restart attempt for {sid}")
-                         raise HTTPException(status_code=403, detail="Interview is already in progress. You cannot restart.")
+                         logger.warning(f"Blocked unauthorized restart attempt for {sid} (Cookie Mismatch)")
+                         raise HTTPException(status_code=403, detail="Interview is already in progress. Re-entry denied.")
                 else:
                     # Status is Interviewing but no session found? 
-                    # This implies a data inconsistency or manual DB edit. 
-                    # Block to be safe, or allow if we assume status is stale?
-                    # For strict security: Block.
                     raise HTTPException(status_code=403, detail="Interview status mismatch. Please contact support.")
 
             resume_text = candidate['resume_text']
@@ -227,11 +252,9 @@ async def speak_text(payload: dict):
         # If API Key is present, use ElevenLabs
         logger.debug("DEBUG: /interview/speak called")
         if tts_manager.client:
-            logger.debug("DEBUG: Streaming audio from ElevenLabs...")
-            return StreamingResponse(
-                tts_manager.stream_audio(text),
-                media_type="audio/mpeg"
-            )
+            logger.debug("DEBUG: Generating audio from ElevenLabs (Buffered)...")
+            audio_bytes = tts_manager.generate_audio(text)
+            return Response(content=audio_bytes, media_type="audio/mpeg")
         else:
              logger.warning("DEBUG: TTS Manager has no client. Sending 503.")
              # Fallback signal for frontend to use Browser TTS

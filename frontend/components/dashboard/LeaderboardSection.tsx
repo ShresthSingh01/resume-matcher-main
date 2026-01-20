@@ -17,10 +17,12 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
 
     const getStatusColor = (status: string) => {
         const s = (status || "").toLowerCase();
-        if (s.includes("completed") || s.includes("interviewed")) return "text-[var(--success)]";
-        if (s.includes("shortlist")) return "text-green-600 font-bold";
-        if (s.includes("reject")) return "text-[var(--error)]";
+        if (s.includes("selected") || s.includes("hired")) return "text-emerald-700 font-extrabold";
+        if (s.includes("completed") || s.includes("interviewed")) return "text-emerald-500 font-bold";
+        if (s.includes("shortlist")) return "text-blue-600 font-semibold"; // Shortlisted -> Needs Interview
+        if (s.includes("reject")) return "text-red-500";
         if (s.includes("waitlist")) return "text-orange-500";
+        if (s.includes("invited")) return "text-purple-500";
         return "text-gray-500";
     };
 
@@ -33,10 +35,10 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         const s = (c.status || "").toLowerCase();
 
         // If action already taken (email sent), show disabled state
-        if (s.includes("sent") || s.includes("invited")) {
+        if (s.includes("sent") || s.includes("invited") || s.includes("selected")) {
             let label = "Invited";
             if (s.includes("reject")) label = "Rejection Sent";
-            else if (s.includes("shortlist")) label = "Next Round Sent";
+            else if (s.includes("selected") || s.includes("solicited") || s === "shortlist sent") label = "Next Round Sent";
 
             return (
                 <div className="flex gap-2">
@@ -49,15 +51,24 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         }
 
         // Available Actions for Pending/Reviewed/Decided but not sent
-        let actionLabel = "Invite";
+        let actionLabel = "Invite"; // Default for Shortlisted/Pending -> Invite to Interview
         let btnClass = "btn btn-primary text-xs py-1 px-4 flex items-center gap-2";
 
         if (s.includes("reject")) {
             actionLabel = "Rejection";
             btnClass = "btn bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-red-500 shadow-sm";
-        } else if (s.includes("shortlist") || s.includes("completed")) {
-            actionLabel = "Next Round";
-            btnClass = "btn bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1 px-4 flex items-center gap-2 border border-emerald-500 shadow-sm";
+        } else if (s.includes("interviewed")) {
+            // This state shouldn't theoretically happen often now as DB updates to Selected/Rejected immediately
+            // But if it does (e.g. failure), show 'Processing' or 'View Result'
+            actionLabel = "View Result";
+            btnClass = "btn btn-secondary text-xs py-1 px-4 flex items-center gap-2";
+        } else if (s.includes("selected") || s.includes("completed")) {
+            // Already handled by top check, but safe fallback
+            actionLabel = "Selected (Auto)";
+            btnClass = "btn bg-emerald-600/50 cursor-not-allowed text-white text-xs py-1 px-4";
+        } else if (s.includes("shortlist")) {
+            actionLabel = "Invite to Interview";
+            // Keep primary blue/purple for invite
         }
 
         return (

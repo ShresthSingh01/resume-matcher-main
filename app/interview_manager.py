@@ -91,7 +91,7 @@ class InterviewManager:
         
         resume_text = candidate['resume_text'] if candidate else ""
         jd = candidate['job_description'] if candidate else ""
-        match_score = candidate['match_score'] if candidate else 0.0
+        match_score = candidate['match_score'] if candidate and candidate.get('match_score') is not None else 0.0
         
         session = InterviewSession(
             session_id=row['session_id'],
@@ -236,11 +236,15 @@ class InterviewManager:
             
         scores = [q.score for q in session.question_scores]
         avg_interview_score = sum(scores) / len(scores) if scores else 0
-        match_part = session.initial_match_score * 0.4
-        interview_part = (avg_interview_score * 10) * 0.6
+        
+        # New Weighted Logic: 40% Resume + 60% Interview
+        match_part = session.initial_match_score * 0.40
+        interview_part = (avg_interview_score * 10) * 0.60
         final_score = match_part + interview_part
         
-        new_status = "Shortlisted" if final_score >= 70 else "Rejected"
+        # New Threshold: 60% Total Score
+        threshold = 60.0
+        new_status = "Selected" if final_score >= threshold else "Rejected"
 
         if session.candidate_id and session.candidate_id != "unknown":
              # Check for Anti-Cheating Flags
@@ -282,6 +286,7 @@ class InterviewManager:
             "resume_score": session.initial_match_score,
             "interview_score": round(avg_interview_score * 10, 2),
             "final_score": round(final_score, 2),
+            "decision": new_status,
             "transcript": [
                 {"q": q.question, "a": q.answer, "score": q.score}
                 for q in session.question_scores

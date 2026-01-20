@@ -14,6 +14,7 @@ function CandidateFlow() {
 
     useEffect(() => {
         const cid = searchParams.get("candidate_id");
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         if (cid) setCandidateId(cid);
     }, [searchParams]);
 
@@ -29,11 +30,21 @@ function CandidateFlow() {
     };
 
     // View Routing
-    if (status === "finished" && result) {
+    if (status === "finished") {
+        if (!result) {
+            return (
+                <div className="flex h-screen items-center justify-center bg-black text-center text-white">
+                    <div className="space-y-4">
+                        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-t-2 border-l-2 border-cyan-500"></div>
+                        <p className="font-mono text-xl animate-pulse">Generating Performance Report...</p>
+                    </div>
+                </div>
+            );
+        }
         return <InterviewReport result={result} />;
     }
 
-    if (status === "active" || status === "loading") {
+    if (status === "active" || status === "loading" || status === "submitting") {
         return (
             <div className="p-4">
                 <InterviewInterface

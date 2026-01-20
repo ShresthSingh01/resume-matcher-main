@@ -8,7 +8,7 @@ SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
 SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "").replace(" ", "")
-BASE_URL = os.getenv("BASE_URL", "http://localhost:3000")
+BASE_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
 def _send_email(to_email, subject, body):
     if not SMTP_USERNAME or not SMTP_PASSWORD:
@@ -55,7 +55,7 @@ def send_shortlist_email(candidate_email: str, candidate_name: str):
     """
     SHORTLIST: Congratulations & Next Steps.
     """
-    subject = "Congratulations! You are Shortlisted for the Next Round"
+    subject = "Congratulations! You are Selected for the Next Round"
     body = f"""
     Hi {candidate_name},
     Thank you for your interest in joining Virex and for taking the time to apply.

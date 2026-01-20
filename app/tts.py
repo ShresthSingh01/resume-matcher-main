@@ -169,5 +169,8 @@ class TTSManager:
                 yield chunk
                 
         except Exception as e:
-            print(f"TTS Error: {e}")
-            raise e
+            # Catch ElevenLabs API errors (Quota exceeded, etc) to prevent server crash
+            print(f"TTS Streaming Error (likely quota or network): {e}")
+            # We treat this as end of stream so frontend just gets what it got (or empty)
+            # The frontend 'useSpeech' should ideally have a timeout or silence fallback.
+            return

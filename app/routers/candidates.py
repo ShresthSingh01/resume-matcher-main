@@ -201,22 +201,30 @@ async def invite_candidate(cid: str, action: str = None, background_tasks: Backg
              # Or just let it fall through to else
              pass
 
-    if "sent" in status.lower():
+    if "sent" in status.lower() or "selected" in status.lower():
          return {"message": f"Action already taken for this candidate (Status: {status})"}
 
     if status == 'Shortlisted':
+        # New Flow: Shortlisted means "Passed Resume Screen" -> Send Interview Invite
+        background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)
+        update_candidate_status(cid, "Invited")
+        msg = "Interview invitation sent to Shortlisted candidate."
+        
+    elif status == 'Interviewed' or status == 'Completed':
+        # HR Decision: Select for Next Round
         background_tasks.add_task(send_shortlist_email, email, candidate['name'])
-        update_candidate_status(cid, "Shortlist Sent")
-        msg = "Shortlist 'Next Round' email queued."
+        update_candidate_status(cid, "Selected") # Final "Hired/Next Round" status
+        msg = "Candidate selected for Next Round. Email queued."
+        
     elif status == 'Rejected':
         # Use new flow with job suggestions
         background_tasks.add_task(background_rejection_flow, email, candidate['name'], candidate['resume_text'])
         update_candidate_status(cid, "Reject Sent")
         msg = "Rejection email with job suggestions queued."
     else:
-        # Waitlist or Default -> Send AI Interview Invite
+        # Fallback for any old "Waitlisted" or "Pending" - Default to Interview Invite if not Rejected
         background_tasks.add_task(send_interview_invite, email, candidate['name'], cid)
         update_candidate_status(cid, "Invited")
-        msg = "Interview invitation queued (Waitlist/Standard)."
+        msg = "Interview invitation queued (Fallback)."
 
     return {"message": msg}

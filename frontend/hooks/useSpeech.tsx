@@ -123,12 +123,18 @@ export function useSpeech(
         window.speechSynthesis.cancel();
 
         try {
-            // 1. Backend TTS
-            const res = await fetch("/api/interview/speak", {
+            // 1. Backend TTS with 5s Timeout
+            const timeoutPromise = new Promise<Response>((_, reject) =>
+                setTimeout(() => reject(new Error("TTS Timeout")), 5000)
+            );
+
+            const fetchPromise = fetch("/api/interview/speak", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text }),
             });
+
+            const res = await Promise.race([fetchPromise, timeoutPromise]);
 
             if (!res.ok) throw new Error("Backend TTS Failed");
 

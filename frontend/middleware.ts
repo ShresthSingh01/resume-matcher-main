@@ -16,8 +16,16 @@ export function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/', request.url));
     }
 
-    // Default: Continue
-    return NextResponse.next();
+    // 3. Inject ngrok skip warning header for all requests (proxied to backend)
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('ngrok-skip-browser-warning', 'true');
+
+    // Default: Continue with modified headers
+    return NextResponse.next({
+        request: {
+            headers: requestHeaders,
+        },
+    });
 }
 
 // Configure which paths the middleware runs on
@@ -25,16 +33,11 @@ export const config = {
     matcher: [
         /*
          * Match all request paths except for the ones starting with:
-         * - api (API routes)
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - static (public directory)
-         * 
-         * Specifically, we want to match:
-         * - /
-         * - /login
          */
-        '/((?!api|_next/static|_next/image|favicon.ico|VirexLogo.jpg).*)',
+        '/((?!_next/static|_next/image|favicon.ico|VirexLogo.jpg).*)',
     ],
 };

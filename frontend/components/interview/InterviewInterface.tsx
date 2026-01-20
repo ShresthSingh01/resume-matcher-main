@@ -76,11 +76,13 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
     const [isFullscreen, setIsFullscreen] = useState(true);
     // Track if TTS has initiated for the current question to prevent early timer start
     const [hasSpeechStarted, setHasSpeechStarted] = useState(false);
+    const hasTimedOutRef = useRef(false); // Guard against endless loops at 0
 
     // Reset Timer on new question or status change
     useEffect(() => {
         setSecondsLeft(40);
         setHasSpeechStarted(false);
+        hasTimedOutRef.current = false; // Reset timeout guard
     }, [currentQuestion, status]);
 
     // Track when speech actually starts
@@ -100,20 +102,24 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
         // 4. Speech has actually attempted to start (avoids gap between question load and TTS start)
         if (status === 'active' && !isSpeaking && isFullscreen && hasSpeechStarted) {
             interval = setInterval(() => {
-                setSecondsLeft(prev => {
-                    if (prev <= 1) {
-                        clearInterval(interval);
-                        // Auto-submit when time runs out
-                        onSendMessage(inputValueRef.current || "Time Limit Exceeded");
-                        setInputValue("");
-                        return 0;
-                    }
-                    return prev - 1;
-                });
+                setSecondsLeft(prev => Math.max(0, prev - 1));
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [status, isSpeaking, isFullscreen, onSendMessage, hasSpeechStarted]);
+    }, [status, isSpeaking, isFullscreen, hasSpeechStarted]);
+
+    // Handle Time Limit Exceeded
+    useEffect(() => {
+        if (secondsLeft === 0 && status === 'active' && !hasTimedOutRef.current) {
+            hasTimedOutRef.current = true; // Lock immediately
+            // Use a timeout to ensure this doesn't conflict with other renders
+            const timeoutId = setTimeout(() => {
+                onSendMessage(inputValueRef.current || "Time Limit Exceeded");
+                setInputValue("");
+            }, 0);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [secondsLeft, status, onSendMessage]);
 
     const reconnectFullscreen = () => {
         document.documentElement.requestFullscreen().catch(e => console.error(e));
@@ -316,15 +322,15 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
                             type="text"
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder={isListening ? "Listening..." : "Type your answer here..."}
-                            disabled={isListening}
-                            className="relative w-full rounded-xl border border-white/10 bg-black/40 p-4 pl-6 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:bg-black/60 transition-all font-light tracking-wide shadow-inner"
+                            placeholder={isListening ? "Listening..." : (status === 'submitting' ? "Submitting answer..." : "Type your answer here...")}
+                            disabled={isListening || status === 'submitting' || status === 'loading'}
+                            className="relative w-full rounded-xl border border-white/10 bg-black/40 p-4 pl-6 text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500/50 focus:bg-black/60 transition-all font-light tracking-wide shadow-inner disabled:opacity-50"
                         />
                     </div>
 
                     <button
                         type="submit"
-                        disabled={!inputValue.trim() && !isListening}
+                        disabled={(!inputValue.trim() && !isListening) || status === 'submitting' || status === 'loading'}
                         className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-cyan-600 text-white shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:scale-105 hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] active:scale-95 disabled:opacity-50 disabled:grayscale"
                     >
                         <IoSend size={20} className="ml-1" />

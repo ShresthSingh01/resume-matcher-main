@@ -58,14 +58,14 @@ from fastapi.responses import RedirectResponse
 
 @app.get("/")
 async def redirect_root():
-    return RedirectResponse("http://localhost:3000/")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/")
 
 @app.get("/login")
 async def redirect_login():
-    return RedirectResponse("http://localhost:3000/login")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/login")
 
 @app.get("/candidate")
 async def redirect_candidate(request: Request):
-    return RedirectResponse(f"http://localhost:3000/candidate?{request.query_params}")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/candidate?{request.query_params}")
 
 

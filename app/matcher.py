@@ -84,8 +84,8 @@ def extract_skills(resume_text: str, jd_text: str) -> dict:
             "installation", "repair", "service", "technician", "mechanic", "electrician"
         }
         meaningful_jd = {w for w in jd_words if len(w) > 3 and w not in stopwords}
-        matched = list(meaningful_jd.intersection(resume_words))
-        missing = list(meaningful_jd - resume_words)
+        matched = sorted(list(meaningful_jd.intersection(resume_words)))
+        missing = sorted(list(meaningful_jd - resume_words))
         
         return {
             "matched_skills": matched[:10], # Limit to top 10
@@ -320,20 +320,19 @@ async def evaluate_resume_structured(
         final_score = round(weighted_sum * 100, 2)
         
         # 3. Enforce Decision Logic
-        shortlist_thresh = thresholds.get("shortlist", 75)
+        # New Logic: Binary Shortlisted vs Rejected
+        # Anything above 'interview_thresh' (default 50) is Shortlisted AND Needs Interview.
+        
         interview_thresh = thresholds.get("interview", 50)
         
         decision = ""
         interview_req = False
         
-        if final_score >= shortlist_thresh:
-            decision = "Strong Resume – Direct Shortlist"
-            interview_req = False
-        elif final_score >= interview_thresh:
-            decision = "Borderline Resume – Virtual Interview Required"
-            interview_req = True
+        if final_score >= interview_thresh:
+            decision = "Shortlisted" # Generic positive decision
+            interview_req = True     # All shortlisted candidates must interview
         else:
-            decision = "Weak Resume – Reject"
+            decision = "Rejected"
             interview_req = False
             
         # 4. Update the Result Object

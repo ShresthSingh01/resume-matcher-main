@@ -24,7 +24,8 @@ async def process_upload_job(
     recruiter_username: str
 ):
     """
-    Background task to process resumes in BULK mode for speed.
+    Background task to process resumes.
+    Refactored to process each resume INDIVIDUALLY with FULL TEXT context.
     """
     session = get_db_session()
     job = session.query(UploadJob).filter(UploadJob.job_id == job_id).first()
@@ -51,9 +52,11 @@ async def process_upload_job(
         role_template, thresholds = get_role_template(detected_role)
         required_skills = await extract_required_skills(jd_text)
         
-        # Step 1: Parse ALL files first (Fast, CPU bound)
+        # Parse resumes first
         parsed_resumes = []
         errors = []
+        
+        logger.info(f"Parsing {len(files_data)} files...")
         
         for i, (f_bytes, fname) in enumerate(zip(files_data, filenames)):
             try:
@@ -69,45 +72,45 @@ async def process_upload_job(
             except Exception as e:
                 errors.append({"filename": fname, "error": str(e)})
 
-        # Step 2: Batching Strategy (Chunk size 10)
+        logger.info(f"Evaluating {len(parsed_resumes)} resumes (Full Text Mode)...")
+        
+        # Bulk Evaluation (Optimized)
         BATCH_SIZE = 10
-        batches = [parsed_resumes[i:i + BATCH_SIZE] for i in range(0, len(parsed_resumes), BATCH_SIZE)]
+        valid_results = []
         
-        logger.info(f"Starting Batch Processing: {len(parsed_resumes)} resumes in {len(batches)} batches.")
-        
-        # Step 3: Execute Batches in Parallel
-        sem = asyncio.Semaphore(5)
-        
-        async def process_batch(batch):
-            async with sem:
-                return await evaluate_resumes_bulk(
+        for i in range(0, len(parsed_resumes), BATCH_SIZE):
+            batch = parsed_resumes[i : i + BATCH_SIZE]
+            logger.info(f"Processing Batch {i//BATCH_SIZE + 1} ({len(batch)} resumes)...")
+            
+            try:
+                # evaluate_resumes_bulk returns list of {"index": idx, "output": ResumeEvaluationOutput}
+                batch_results = await evaluate_resumes_bulk(
                     resumes=batch,
                     job_role=detected_role,
                     required_skills=required_skills,
                     role_template=role_template,
                     thresholds=thresholds
                 )
-
-        batch_tasks = [process_batch(b) for b in batches]
-        batch_results = await asyncio.gather(*batch_tasks)
+                if batch_results:
+                    valid_results.extend(batch_results)
+            except Exception as e:
+                logger.error(f"Batch {i//BATCH_SIZE + 1} failed: {e}")
+                # Continue process other batches even if one fails
         
-        # Flatten results
-        flat_results = [item for sublist in batch_results for item in sublist]
-        
-        # Map findings back to objects and Save DB
+        # Save to DB
         results_list = []
         
-        # Create a lookup for filename by index
+        # Map back via index
         idx_map = {r["index"]: r for r in parsed_resumes}
         
-        for res in flat_results:
+        for res in valid_results:
             idx = res.get("index")
             output = res.get("output")
             source = idx_map.get(idx)
             
             if not source or not output: continue
             
-            # DB Save
+            # Extract lists
             r_skills = set(s.lower() for s in output.extracted_evidence.skills)
             matched_list = [s for s in required_skills if s.lower() in r_skills]
             missing_list = [s for s in required_skills if s.lower() not in r_skills]
@@ -120,19 +123,20 @@ async def process_upload_job(
                 matched_skills=matched_list,
                 missing_skills=missing_list,
                 resume_evaluation=output.model_dump(),
-                status="Shortlisted" if output.decision == "Strong Match" else ("Waitlisted" if output.interview_required else ("Rejected" if "Reject" in output.decision else "Matched")),
+                status="Shortlisted" if (output.interview_required or output.weighted_resume_score >= 50) else "Rejected",
                 recruiter_username=recruiter_username
             )
             results_list.append({"candidate_id": cid, "status": "success", "filename": source["filename"]})
 
-        # Add generic errors
+        # Append errors
         results_list.extend(errors)
         
-        # Finalize
+        # Finalize Job
         job.processed_count = len(files_data)
         job.status = "completed"
         job.results = json.dumps(results_list)
         session.commit()
+        logger.info(f"Job {job_id} Completed. {len(valid_results)} successes.")
         
     except Exception as e:
         logger.error(f"Job {job_id} failed: {e}")

@@ -153,7 +153,7 @@ export default function CandidateModal({ candidate, onClose }: CandidateModalPro
                                             </div>
                                         </div>
 
-                                        <div className="mb-3 text-sm font-medium text-[var(--text-main)] italic">"{t.q}"</div>
+                                        <div className="mb-3 text-sm font-medium text-[var(--text-main)] italic">&quot;{t.q}&quot;</div>
 
                                         <div className="bg-[var(--bg-secondary)] p-3 rounded border border-[var(--border-color)] text-sm text-[var(--text-secondary)] leading-relaxed">
                                             {t.a}

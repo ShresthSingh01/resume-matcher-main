@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
 from loguru import logger
 from app.schemas import StartInterviewRequest, InterviewAnswerRequest, InterviewResultRequest, FlagRequest
 from app.db import get_candidate, get_active_session_by_candidate, flag_candidate, update_candidate_status
 from app.interview_manager import interview_manager
 from app.tts import TTSManager
+from app.resume_parser import extract_email
 
 router = APIRouter()
 tts_manager = TTSManager()
@@ -13,7 +14,7 @@ from fastapi.responses import RedirectResponse
 
 @router.get("/interview/start")
 async def redirect_interview_start(candidate_id: str):
-    return RedirectResponse(f"http://localhost:3000/candidate?candidate_id={candidate_id}")
+    return RedirectResponse(f"{settings.FRONTEND_URL}/candidate?candidate_id={candidate_id}")
 
 @router.post("/interview/start")
 async def start_interview(payload: StartInterviewRequest, request: Request):
@@ -146,16 +147,51 @@ async def submit_answer(request: InterviewAnswerRequest):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @router.post("/interview/result")
-async def get_result(request: InterviewResultRequest):
+async def get_result(request: InterviewResultRequest, background_tasks: BackgroundTasks = None):
     try:
+        if background_tasks is None: background_tasks = BackgroundTasks() # Fallback
+
         # 1️⃣ Calculate result ONCE
         result = interview_manager.calculate_final_result(request.session_id)
         if not result:
              raise HTTPException(status_code=404, detail="Session not found.")
              
-        # Optional: Update DB if we had candidate_id logic wired through session
-        # But for now, we return valid result
+        # 2️⃣ Automated Decision & Email
+        decision = result.get("decision", "")
+        session = interview_manager.get_session(request.session_id)
         
+        if session and session.candidate_id and session.candidate_id != "unknown":
+            candidate = get_candidate(session.candidate_id)
+            if candidate:
+                 email = extract_email(candidate['resume_text'])
+                 name = candidate['name']
+                 
+                 # Ensure we don't double send if result called multiple times (Status check needed?)
+                 status = candidate.get("status", "")
+                 
+                 # Only send if status matches the decision and we haven't sent yet
+                 # But calculate_final_result ALREADY updated the DB status to "Selected"/"Rejected"
+                 # So we just check if "sent" is in status.
+                 
+                 if "sent" not in status.lower():
+                     if decision == "Selected":
+                        from app.email_service import send_shortlist_email
+                        from app.db import update_candidate_status
+                        
+                        background_tasks.add_task(send_shortlist_email, email, name)
+                        update_candidate_status(session.candidate_id, "Selected (Email Sent)")
+                        result["decision_msg"] = "Congratulations! You have been selected for the next round. Check your email."
+                        
+                     elif decision == "Rejected":
+                        from app.routers.candidates import background_rejection_flow
+                        from app.db import update_candidate_status
+                        
+                        # We pass resume text for job matching
+                        background_tasks.add_task(background_rejection_flow, email, name, candidate['resume_text'])
+                        update_candidate_status(session.candidate_id, "Rejected (Email Sent)")
+                        result["decision_msg"] = "Thank you for your time. Your application update has been sent to your email."
+
+        logger.info(f"DEBUG: Result Payload: {result}")
         return result
 
     except Exception as e:

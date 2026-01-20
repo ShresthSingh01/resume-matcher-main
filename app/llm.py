@@ -22,5 +22,6 @@ def get_llm(temperature: float = 0, max_tokens: int = 1000):
         temperature=temperature,
         api_key=SecretStr(api_key),
         base_url=base_url,
-        max_tokens=max_tokens
+        max_tokens=max_tokens,
+        model_kwargs={"seed": 42}
     )

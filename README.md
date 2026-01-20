@@ -152,7 +152,23 @@ Easily spin up the entire stack (Frontend + Backend + Database) using Docker.
     ```
 
 3.  **Access the App**
-    *   **Frontend**: [http://localhost:3000](http://localhost:3000)
     *   **Backend API**: [http://localhost:8000/docs](http://localhost:8000/docs)
     *   **Database**: Accessible on port `5432`
+
+### 7. 🌍 Global Access (Mobile / Public Internet)
+To access the interview session from a mobile device or a different network (Waitlisted Candidates), use the automated **Global Launcher**:
+
+1.  **Prerequisites**:
+    *   Download [ngrok](https://ngrok.com/download) and place `ngrok.exe` in the project root.
+    *   Add your auth token: `.\ngrok config add-authtoken <YOUR_TOKEN>`
+
+2.  **Run the One-Click Script**:
+    ```powershell
+    .\start_global.ps1
+    ```
+    *   This will automatically:
+        *   Start secure tunnels for both Frontend & Backend.
+        *   Update your `.env` file with the public URLs.
+        *   Launch the Docker application.
+    *   **Share the Public Frontend URL** with candidates to allow them to take the interview from anywhere.
 

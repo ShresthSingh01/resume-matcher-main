@@ -32,7 +32,7 @@ export default function CandidateLanding({ onStart, loading }: CandidateLandingP
                         <div className="mb-12 text-left p-6 bg-white/5 rounded-xl border border-white/10 backdrop-blur-md relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-cyan-500"></div>
                             <p className="font-bold text-sm text-white mb-4 flex items-center gap-2 uppercase tracking-wide">
-                                <span className="text-cyan-400">// PROTOCOL:</span>
+                                <span className="text-cyan-400">{'// PROTOCOL:'}</span>
                             </p>
                             <ul className="space-y-4 text-slate-300 font-light text-sm tracking-wide">
                                 <li className="flex items-start gap-3">

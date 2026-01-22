@@ -21,7 +21,8 @@ async def process_upload_job(
     filenames: List[str], 
     jd_text: str, 
     template_mode: str, 
-    recruiter_username: str
+    recruiter_username: str,
+    resume_threshold: int = 50
 ):
     """
     Background task to process resumes.
@@ -131,8 +132,8 @@ async def process_upload_job(
             
             if interview_enabled:
                 # Conventional Flow: Wait for interview
-                # Threshold for Shortlist: 50% Resume Match (or if model says interview_required)
-                if output.interview_required or output.weighted_resume_score >= 50:
+                # Threshold for Shortlist: User Defined
+                if output.weighted_resume_score >= resume_threshold:
                     status = "Shortlisted"
                 else:
                     status = "Rejected"
@@ -140,8 +141,8 @@ async def process_upload_job(
             else:
                 # Resume Only Flow: 100% Resume Score
                 final_score = output.weighted_resume_score
-                # Threshold 60% for Selection
-                if final_score >= 60:
+                # Threshold for Selection: User Defined
+                if final_score >= resume_threshold:
                     status = "Selected (Resume)"
                 else:
                     status = "Rejected (Resume)"

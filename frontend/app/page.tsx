@@ -5,6 +5,7 @@ import UploadSection from "@/components/dashboard/UploadSection";
 import LeaderboardSection from "@/components/dashboard/LeaderboardSection";
 import CandidateModal from "@/components/dashboard/CandidateModal";
 import { IoLogOutOutline, IoListOutline, IoCloudUploadOutline } from "react-icons/io5";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const {
@@ -98,7 +99,7 @@ export default function DashboardPage() {
           <LeaderboardSection
             candidates={candidates}
             onView={setSelectedCandidate}
-            onInvite={(id, action) => inviteCandidate(id, action).then(msg => alert(msg)).catch(e => alert(e))}
+            onInvite={(id, action) => inviteCandidate(id, action).then(msg => toast.success(msg)).catch(e => toast.error(e.message))}
             onClear={clearLeaderboard}
             onRefresh={fetchCandidates}
           />

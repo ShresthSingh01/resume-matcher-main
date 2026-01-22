@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { IoMicOutline, IoMicOffOutline, IoSend, IoWarningOutline } from "react-icons/io5";
+import { toast } from "sonner";
 import { useMedia } from "@/hooks/useMedia";
 import { useSpeech } from "@/hooks/useSpeech";
 import { Message } from "@/hooks/useInterview";
@@ -135,7 +136,9 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
             if (document.hidden) {
                 const res = await onFlagViolation("Tab Switch / Hidden Window");
                 if (res?.warning_count) {
-                    alert(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Multiple violations will result in termination.`);
+                    toast.warning(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Multiple violations will result in termination.`, {
+                        duration: 5000,
+                    });
                 }
             }
         };
@@ -146,7 +149,9 @@ export default function InterviewInterface({ messages, onSendMessage, currentQue
             if (!isFull) {
                 const res = await onFlagViolation("Exited Fullscreen");
                 if (res?.warning_count) {
-                    alert(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Stay in fullscreen.`);
+                    toast.warning(`Warning: Violation recorded (${res.warning_count}/${res.limit}). Stay in fullscreen.`, {
+                        duration: 5000,
+                    });
                 }
             }
         };

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { IoAlertCircleOutline, IoCheckmarkCircle } from "react-icons/io5";
+import { toast } from "sonner";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -34,7 +35,7 @@ export default function LoginPage() {
 
             if (res.ok) {
                 if (isRegister) {
-                    alert("Account created! Please log in.");
+                    toast.success("Account created! Please log in.");
                     setIsRegister(false);
                     setLoading(false);
                 } else {

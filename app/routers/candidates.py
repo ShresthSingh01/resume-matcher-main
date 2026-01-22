@@ -74,7 +74,8 @@ async def upload_resume(
     job_description: str = Form(None),
     jd_file: UploadFile = File(None),
     template_mode: str = Form("auto"),
-    enable_interview: bool = Form(True), # New Flag
+    enable_interview: bool = Form(True),
+    resume_threshold: int = Form(50), # New Parameter
     background_tasks: BackgroundTasks = BackgroundTasks(),
     user: str = Depends(get_current_user)
 ):
@@ -128,7 +129,8 @@ async def upload_resume(
             filenames,
             jd_text,
             template_mode,
-            user
+            user,
+            resume_threshold
         )
         
         return {"job_id": job_id, "message": "Upload started in background", "total_files": len(resumes)}

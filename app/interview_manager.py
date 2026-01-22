@@ -291,7 +291,7 @@ class InterviewManager:
             "final_score": round(final_score, 2),
             "decision": new_status,
             "transcript": [
-                {"q": q.question, "a": q.answer, "score": q.score}
+                {"q": q.question, "a": q.answer, "score": q.score, "feedback": q.feedback}
                 for q in session.question_scores
             ]
         }

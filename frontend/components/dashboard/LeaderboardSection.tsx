@@ -110,8 +110,40 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
         );
     };
 
+    const [showClearConfirmation, setShowClearConfirmation] = useState(false);
+
     return (
         <div className="mx-auto w-full max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Confirmation Modal */}
+            {showClearConfirmation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="absolute inset-0 bg-black/60" onClick={() => setShowClearConfirmation(false)}></div>
+                    <div className="relative w-full max-w-md overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] shadow-2xl p-6">
+                        <h3 className="text-lg font-bold text-[var(--text-main)] mb-2">Clear Leaderboard?</h3>
+                        <p className="text-sm text-[var(--text-secondary)] mb-6">
+                            Are you sure you want to delete all candidates? This action cannot be undone.
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setShowClearConfirmation(false)}
+                                className="px-4 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onClear();
+                                    setShowClearConfirmation(false);
+                                }}
+                                className="px-4 py-2 rounded-lg text-sm font-bold bg-red-600 text-white hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+                            >
+                                Yes, Clear All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="glass-card min-h-[500px] p-0 overflow-hidden">
                 <div className="p-6 border-b border-[var(--border-color)] flex flex-col items-start justify-between gap-4 md:flex-row md:items-center bg-[var(--bg-secondary)]">
                     <div>
@@ -121,7 +153,7 @@ export default function LeaderboardSection({ candidates, onView, onInvite, onCle
                         <p className="mt-1 font-normal text-sm text-[var(--text-secondary)]">Ranked by Resume Match & Interview Performance</p>
                     </div>
                     <div className="flex gap-3">
-                        <button onClick={onClear} className="btn bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all">
+                        <button onClick={() => setShowClearConfirmation(true)} className="btn bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20 transition-all">
                             <IoTrashOutline className="mr-2 inline" /> Clear
                         </button>
                         <button onClick={onRefresh} className="btn btn-secondary">

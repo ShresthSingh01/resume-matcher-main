@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { IoCloudUploadOutline, IoDocumentTextOutline, IoBriefcaseOutline, IoArrowForwardOutline, IoOptionsOutline, IoCheckmarkCircleOutline } from "react-icons/io5";
+import { toast } from "sonner";
 
 interface UploadSectionProps {
-    onUpload: (files: FileList, jd: string, template: string, enableInterview: boolean) => Promise<string | null>; // Returns Job ID
+    onUpload: (files: FileList, jd: string, template: string, enableInterview: boolean, resumeThreshold: number) => Promise<string | null>; // Returns Job ID
     loading: boolean; // Initial submit loading
     onComplete: () => void;
 }
@@ -14,6 +15,7 @@ export default function UploadSection({ onUpload, loading, onComplete }: UploadS
     const [jd, setJd] = useState("");
     const [template, setTemplate] = useState("auto");
     const [enableInterview, setEnableInterview] = useState(true); // Default true
+    const [resumeThreshold, setResumeThreshold] = useState(50); // Default 50%
 
     // Async Job State
     const [jobId, setJobId] = useState<string | null>(null);
@@ -54,10 +56,10 @@ export default function UploadSection({ onUpload, loading, onComplete }: UploadS
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!files || files.length === 0 || !jd) {
-            alert("Please provide at least one resume and a Job Description.");
+            toast.error("Please provide at least one resume and a Job Description.");
             return;
         }
-        const id = await onUpload(files, jd, template, enableInterview);
+        const id = await onUpload(files, jd, template, enableInterview, resumeThreshold);
         if (id) {
             setJobId(id);
             setTotal(files.length);
@@ -174,6 +176,24 @@ export default function UploadSection({ onUpload, loading, onComplete }: UploadS
                                         <option value="senior">🚀 Senior / Lead</option>
                                     </select>
                                     <div className="pointer-events-none absolute right-4 top-3.5 text-[var(--text-secondary)]">▼</div>
+                                </div>
+
+                                {/* Resume Threshold Input */}
+                                <div className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-primary)]/30 hover:bg-[var(--bg-primary)]/50 transition-colors">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h3 className="text-sm font-bold text-[var(--text-main)]">Resume Match Threshold</h3>
+                                        <span className="text-xs font-mono font-bold text-blue-500">{resumeThreshold}%</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="100"
+                                        step="5"
+                                        value={resumeThreshold}
+                                        onChange={(e) => setResumeThreshold(Number(e.target.value))}
+                                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                    />
+                                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 text-right">Candidates below this score are rejected.</p>
                                 </div>
 
                                 {/* AI Interview Toggle */}

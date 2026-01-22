@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 export type Candidate = {
     id: string;
@@ -68,7 +69,7 @@ export function useDashboard() {
         }
     }, []);
 
-    const uploadResumes = async (files: FileList, jdText: string, templateMode: string, enableInterview: boolean) => {
+    const uploadResumes = async (files: FileList, jdText: string, templateMode: string, enableInterview: boolean, resumeThreshold: number) => {
         try {
             setLoading(true);
             const formData = new FormData();
@@ -78,6 +79,7 @@ export function useDashboard() {
             formData.append("job_description", jdText);
             formData.append("template_mode", templateMode);
             formData.append("enable_interview", String(enableInterview));
+            formData.append("resume_threshold", String(resumeThreshold));
 
             const res = await fetch("/api/upload", {
                 method: "POST",
@@ -144,7 +146,7 @@ export function useDashboard() {
     };
 
     const clearLeaderboard = async () => {
-        if (!confirm("Clear all candidates?")) return;
+        // Confirmation is now handled in the UI component
         try {
             const res = await fetch("/api/candidates", { method: "DELETE" });
             if (!res.ok) {
@@ -153,10 +155,10 @@ export function useDashboard() {
             }
             setCandidates([]);
             setView("upload");
-            // Optional: alert check?
+            toast.success("Leaderboard cleared successfully");
         } catch (e: any) {
             console.error(e);
-            alert("Error clearing leaderboard: " + e.message);
+            toast.error("Error clearing leaderboard: " + e.message);
         }
     };
 

@@ -38,30 +38,7 @@ Traditional recruitment is plagued by high volumes, unconscious bias, and schedu
 
 The system operates on a strictly defined **3-Phase Workflow**:
 
-```mermaid
-graph TD
-    subgraph "Phase 1: Ingestion"
-        R[Recruiter] -->|Uploads PDF| Parse[LLM Parser]
-        R -->|Sets JD| Config[Role Configuration]
-    end
-
-    subgraph "Phase 2: Hybrid Scoring"
-        Parse -->|Extracts| Profile[Structured Profile]
-        Profile -->|Evaluate| ScoreA[Resume Score]
-        ScoreA -->|Filter| Logic{Score >= 60%?}
-        Logic -->|No| Reject[Auto-Reject]
-        Logic -->|Yes| Invite[Invite to Interview]
-    end
-
-    subgraph "Phase 3: Execution"
-        Invite -->|Link| Cand[Candidate]
-        Cand -->|Voice Stream| Agent[AI Interviewer]
-        Agent -->|Validates| AntiCheat[Anti-Cheating Ops]
-        Agent -->|Grades| ScoreB[Interview Score]
-    end
-
-    ScoreB -->|Combine| Final[Leaderboard]
-```
+![Architecure](https://image2url.com/r2/default/images/1769268171877-a3839382-f593-4bd8-8258-dc548c84b34b.png)
 
 ### Data Flow
 1.  **Ingestion**: Resume PDF $\rightarrow$ Text Extraction $\rightarrow$ LLM Template Mapping $\rightarrow$ Initial Score.

@@ -38,7 +38,9 @@ Traditional recruitment is plagued by high volumes, unconscious bias, and schedu
 
 The system operates on a strictly defined **3-Phase Workflow**:
 
-![image](https://image2url.com/r2/default/images/1769268298988-e1b269bd-1a43-4745-a756-1c6ae79ebc1b.png)
+[![image](https://image2url.com/r2/default/images/1769268298988-e1b269bd-1a43-4745-a756-1c6ae79ebc1b.png)]({url})
+
+
 ### Data Flow
 1.  **Ingestion**: Resume PDF $\rightarrow$ Text Extraction $\rightarrow$ LLM Template Mapping $\rightarrow$ Initial Score.
 2.  **Interview**: Voice Audio $\rightarrow$ STT $\rightarrow$ LLM Context Engine $\rightarrow$ TTS $\rightarrow$ Browser Audio.

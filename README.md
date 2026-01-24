@@ -1,111 +1,183 @@
-# 🧠 Virex AI - Intelligent Recruitment & Interview Platform
+# 🧠 Virex AI: Next-Gen Intelligent Recruitment System
 
-**Virex AI** is an enterprise-grade recruitment automation system designed to eliminate human bias and inefficiency from the hiring process. It replaces subjective resume screening with a **Deterministic Weighted Scoring Engine** and an **Autonomous AI Interviewer**, providing a complete end-to-end hiring pipeline.
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-teal?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+> **"Transforming Recruitment from a Manual Process into a Data-Driven Science."**
+
+**Virex AI** is an enterprise-grade, autonomous recruitment platform designed to eliminate human bias and operational bottlenecks. By unifying **LLM-based Resume Parsing** with an **Autonomous Voice-AI Interviewer**, Virex creates a seamless, end-to-end hiring pipeline that operates with zero-trust integrity.
+
+---
+
+## 📑 Table of Contents
+- [Executive Summary](#-executive-summary)
+- [System Architecture](#-system-architecture)
+- [Detailed Subsystems](#-detailed-subsystems)
+  - [I. Intelligent Resume Matcher (IRM)](#i-intelligent-resume-matcher-irm)
+  - [II. Adaptive Virtual Interviewer (AVI)](#ii-adaptive-virtual-interviewer-avi)
+  - [III. Scalability & Core](#iii-scalability--core)
+- [Technology Stack](#-technology-stack)
+- [Security & Anti-Cheating](#-security--anti-cheating)
+- [Installation & Setup](#-installation--setup)
+
+---
+
+## 🚀 Executive Summary
+
+Traditional recruitment is plagued by high volumes, unconscious bias, and scheduling inefficiencies. Virex AI solves this by introducing a **"Digital Recruiter"** that handles the heavy lifting:
+
+1.  **Smart Screening**: Instantly parses and scores thousands of resumes against a JD using a 5-point Likert scale.
+2.  **Autonomous Interviewing**: Conducts real-time, voice-based technical interviews with shortlisted candidates.
+3.  **Deterministic Scoring**: Calculates a final weighted score (40% Resume + 60% Interview) to rank candidates objectively.
 
 ---
 
 ## 📐 System Architecture
 
-The system is built on a modern, scalable event-driven architecture:
+The system operates on a strictly defined **3-Phase Workflow**:
 
-| Component | Technology | Role |
+```mermaid
+graph TD
+    subgraph "Phase 1: Ingestion"
+        R[Recruiter] -->|Uploads PDF| Parse[LLM Parser]
+        R -->|Sets JD| Config[Role Configuration]
+    end
+
+    subgraph "Phase 2: Hybrid Scoring"
+        Parse -->|Extracts| Profile[Structured Profile]
+        Profile -->|Evaluate| ScoreA[Resume Score]
+        ScoreA -->|Filter| Logic{Score >= 60%?}
+        Logic -->|No| Reject[Auto-Reject]
+        Logic -->|Yes| Invite[Invite to Interview]
+    end
+
+    subgraph "Phase 3: Execution"
+        Invite -->|Link| Cand[Candidate]
+        Cand -->|Voice Stream| Agent[AI Interviewer]
+        Agent -->|Validates| AntiCheat[Anti-Cheating Ops]
+        Agent -->|Grades| ScoreB[Interview Score]
+    end
+
+    ScoreB -->|Combine| Final[Leaderboard]
+```
+
+### Data Flow
+1.  **Ingestion**: Resume PDF $\rightarrow$ Text Extraction $\rightarrow$ LLM Template Mapping $\rightarrow$ Initial Score.
+2.  **Interview**: Voice Audio $\rightarrow$ STT $\rightarrow$ LLM Context Engine $\rightarrow$ TTS $\rightarrow$ Browser Audio.
+3.  **State**: Redis manages active "Session State" for <10ms latency updates.
+
+---
+
+## 🔍 Detailed Subsystems
+
+### I. Intelligent Resume Matcher (IRM)
+The **IRM** goes beyond keyword matching. It uses Large Language Models to extract a **Structured Candidate Profile** and evaluates it on a strict **5-Point Likert Scale**.
+
+#### Evaluation Dimensions:
+*   **Education**: Quality and relevance of degree (1-5).
+*   **Experience**: Years of experience vs. seniority required (1-5).
+*   **Skills**: Semantic match of hard/soft skills (1-5).
+*   **Projects**: Complexity and real-world applicability (1-5).
+*   **Certifications**: Verified credentials (1-5).
+
+> **Formula**: $\text{Resume Score} = \sum (\text{Dimension Score} \times \text{Role Weight})$
+> *Weights are dynamic based on the Role Template (e.g., Senior dev roles weight Experience higher).*
+
+### II. Adaptive Virtual Interviewer (AVI)
+The **AVI** acts as a technical proxy, validating that candidates *actually* know what they claim.
+
+#### The Cognitive Loop (Listen-Think-Speak):
+1.  **Input**: Captures candidate audio via Web Speech API.
+2.  **Reasoning**: LLM generates a context-aware question based on the **Resume + JD + Previous Answer**.
+3.  **Grading**: A separate "Grader Agent" scores the answer (0-10) for technical accuracy.
+4.  **Output**: Ultra-realistic voice response via **ElevenLabs**.
+
+### III. Scalability & Core
+Built for enterprise loads (500+ concurrent users):
+*   **Asynchronous Workers**: Background threads handle heavy PDF parsing without blocking the UI.
+*   **Redis Hot-State**: Manages live interview sessions to ensure context isn't lost during connection drops.
+*   **Database**: SQLite (dev) / PostgreSQL (prod) with strict Foreign Key constraints for integrity.
+
+---
+
+## 💻 Technology Stack
+
+| Component | Technology | Description |
 | :--- | :--- | :--- |
-| **Frontend** | `Next.js 14` (React) | Responsive Dashboard, Real-time Interview Interface, Leaderboard. |
-| **Backend** | `FastAPI` (Python) | High-performance Async API, WebSocket management for real-time audio. |
-| **AI Core** | `Google Gemini Pro` | The "Brain" for Resume Parsing, Matching, and Interview Context. |
-| **Voice Engine** | `ElevenLabs` | Ultra-realistic Text-to-Speech (TTS) for the AI Interviewer. |
-| **Database** | `SQLite` (SQLAlchemy) | Relational storage for Candidates, Recruiters, and Interview Sessions. |
-| **Orchestrator** | `LangChain` | Manages LLM chains, structured outputs, and prompt engineering. |
+| **Frontend** | **Next.js 14** (TypeScript) | App Router, Server Components, TailwindCSS. |
+| **Backend** | **FastAPI** (Python 3.10) | Async REST API, WebSockets for audio streaming. |
+| **AI Brain** | **LangChain + Gemini Pro** | Orchestration of reasoning chains and prompt management. |
+| **Voice** | **ElevenLabs + Web Speech API** | Low-latency Text-to-Speech (TTS) and Speech-to-Text (STT). |
+| **Database** | **SQLAlchemy + Redis** | Relational data persistence and in-memory caching. |
 
 ---
 
-## 🔄 System Workflow (Step-by-Step)
+## 🛡 Security & Anti-Cheating
 
-### 1. 📤 Intelligent Ingestion
-*   **Action**: Recruiter uploads bulk resumes (PDF/DOCX) and inputs a Job Description (JD).
-*   **Process**: The system uses `pypdf` + **LLM Parsing** to extract structured entities (Skills, Education, Experience) from even the messiest resume formats.
+Virex implements a **Zero-Trust Exam Environment** during interviews:
 
-### 2. 🧠 Smart Resume Evaluation (The "Initial Filter")
-Unlike simple keyword matchers, Virex uses a **Structured Likert-Scale Evaluation**:
-the AI rates every candidate on **5 Dimensions (1-5 Scale)**:
-1.  **Education**: (e.g., 5 = Top Tier/Masters, 1 = No Degree)
-2.  **Experience**: (e.g., 5 = Senior Expert, 1 = Junior/None)
-3.  **Skills**: (Semantic match against JD)
-4.  **Projects**: (Complexity and relevance)
-5.  **Certifications**: (Verified credentials)
-
-**The Formula:**
-$$ \text{Resume Score} = \sum (\text{Dimension Score} \times \text{Weight}) $$
-*(Weights are dynamic based on role, e.g., Senior roles weight Experience 45%, Junior roles weight Skills 30%).*
-
-### 3. ⚖️ Automated Decision Logic
-Based on the Resume Score, the system strictly categorizes candidates:
-*   **🔴 Rejected (< 60%)**: Candidate is filtered out.
-*   **🟢 Shortlisted (>= 60%)**: Candidate is **Invited to AI Interview**.
-
-### 4. 🤖 The AI Interview (The "Deep Dive")
-Shortlisted candidates undergo a rigorous technical interview:
-*   **Context Aware**: The AI reads the specific resume and JD to generate unique, challenging questions.
-*   **Real-time Voice**: Interaction happens via voice (Speech-to-Text -> LLM -> Text-to-Speech).
-*   **Anti-Cheating**: Full-screen enforcement, tab-switch detection, and object detection.
-
-### 5. 🏆 The Final Leaderboard
-Recruiters see a final ranked list sorted by a **Composite Score**:
-$$ \text{Final Score} = (\text{Resume Score} \times 40\%) + (\text{Interview Score} \times 60\%) $$
-
-### 6. ✅ Final Decision (Human-in-the-Loop)
-For top candidates (Status: "Interviewed"), the recruiter has two explicit actions:
-*   **Green Button ("Send Invite")**: Triggers the "Next Round" offer email.
-*   **Red Button ("Reject")**: Triggers a polite data-driven rejection email.
+*   **Fullscreen Enforcement**: Exiting fullscreen triggers an immediate flag.
+*   **Tab Focus Monitoring**: Switching tabs or minimizing the browser is detected.
+*   **3-Strike Policy**:
+    *   **1 Flag**: Warning issued (Score Impact: -20%).
+    *   **2 Flags**: **Session Terminated** (Score = 0).
+*   **Device Lock**: Unique session cookies prevent sharing interview links.
 
 ---
 
-## 🛡️ Security & Integrity
-
-*   **Session Isolation**: Candidates cannot restart or retry interviews once completed.
-*   **Input Blocking**: Copy/Paste/Right-Click disabled during tests.
-*   **Role-Based Access**: Recruiters data is isolated; they cannot see each other's candidates.
-
----
-
-## 🚀 Installation & Setup
+## 🛠 Installation & Setup
 
 ### Prerequisites
-*   Python 3.10+
-*   Node.js 18+
-*   Google Gemini API Key
+*   **Python** 3.10+
+*   **Node.js** 18+
+*   **Redis** (Optional, falls back to memory)
 
-### 1. Clone & Install
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-repo/virex-ai.git
-cd virex-ai
+git clone https://github.com/Start-Virex-AI/virex-core.git
+cd virex-core
+```
 
-# Backend
+### 2. Backend Setup
+```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 
-# Frontend
-cd frontend
-npm install
-```
+# Setup Environment Variables
+cp .env.example .env
+# Edit .env and add your GOOGLE_API_KEY and ELEVENLABS_API_KEY
 
-### 2. Configure Environment (.env)
-Create a `.env` file in the root:
-```ini
-GOOGLE_API_KEY=your_gemini_key
-ELEVENLABS_API_KEY=your_voice_key
-# Email Config (Optional)
-SMTP_USERNAME=your_email
-SMTP_PASSWORD=your_password
-```
-
-### 3. Run the System
-```bash
-# Terminal 1: Backend
+# Run Server
 uvicorn app.main:app --reload
+```
 
-# Terminal 2: Frontend
+### 3. Frontend Setup
+```bash
 cd frontend
+
+# Install dependencies
+npm install
+
+# Run Development Server
 npm run dev
 ```
 
-Access the Dashboard at: `http://localhost:3000`
+Visit the dashboard at `http://localhost:3000`.
+
+---
+
+## 🔮 Future Roadmap (v2.0)
+- [ ] **Code Execution Sandbox**: Live coding environment for developer roles.
+- [ ] **Multimodal Analysis**: Video-based emotion and confidence scoring.
+- [ ] **ATS Integration**: Direct connect to Greenhouse/Workday.
+
+---
+
+## 📄 License
+Distributed under the MIT License. See `LICENSE` for more information.

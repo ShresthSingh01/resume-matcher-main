@@ -38,7 +38,7 @@ Traditional recruitment is plagued by high volumes, unconscious bias, and schedu
 
 The system operates on a strictly defined **3-Phase Workflow**:
 
-[![image](https://image2url.com/r2/default/images/1769268298988-e1b269bd-1a43-4745-a756-1c6ae79ebc1b.png)]({url})
+[![image](VirexArchitecture.png)
 
 
 ### Data Flow

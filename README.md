@@ -38,7 +38,8 @@ Traditional recruitment is plagued by high volumes, unconscious bias, and schedu
 
 The system operates on a strictly defined **3-Phase Workflow**:
 
-![Architecure](https://image2url.com/r2/default/images/1769268171877-a3839382-f593-4bd8-8258-dc548c84b34b.png)
+[![image](https://image2url.com/r2/default/images/1769268298988-e1b269bd-1a43-4745-a756-1c6ae79ebc1b.png)]({url})
+
 
 ### Data Flow
 1.  **Ingestion**: Resume PDF $\rightarrow$ Text Extraction $\rightarrow$ LLM Template Mapping $\rightarrow$ Initial Score.
@@ -85,7 +86,7 @@ Built for enterprise loads (500+ concurrent users):
 | :--- | :--- | :--- |
 | **Frontend** | **Next.js 14** (TypeScript) | App Router, Server Components, TailwindCSS. |
 | **Backend** | **FastAPI** (Python 3.10) | Async REST API, WebSockets for audio streaming. |
-| **AI Brain** | **LangChain + Gemini Pro** | Orchestration of reasoning chains and prompt management. |
+| **AI Brain** | **LangChain + GPT4.0Mini** | Orchestration of reasoning chains and prompt management. |
 | **Voice** | **ElevenLabs + Web Speech API** | Low-latency Text-to-Speech (TTS) and Speech-to-Text (STT). |
 | **Database** | **SQLAlchemy + Redis** | Relational data persistence and in-memory caching. |
 
@@ -156,5 +157,4 @@ Visit the dashboard at `http://localhost:3000`.
 
 ---
 
-## 📄 License
-Distributed under the MIT License. See `LICENSE` for more information.
+

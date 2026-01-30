@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-teal?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 
 > **"Transforming Recruitment from a Manual Process into a Data-Driven Science."**
 
@@ -38,13 +38,63 @@ Traditional recruitment is plagued by high volumes, unconscious bias, and schedu
 
 The system operates on a strictly defined **3-Phase Workflow**:
 
-[![image](https://image2url.com/r2/default/images/1769268298988-e1b269bd-1a43-4745-a756-1c6ae79ebc1b.png)]({url})
+[![System Architecture](img/VirexArchitecture.png)](img/VirexArchitecture.png)
 
 
 ### Data Flow
 1.  **Ingestion**: Resume PDF $\rightarrow$ Text Extraction $\rightarrow$ LLM Template Mapping $\rightarrow$ Initial Score.
 2.  **Interview**: Voice Audio $\rightarrow$ STT $\rightarrow$ LLM Context Engine $\rightarrow$ TTS $\rightarrow$ Browser Audio.
 3.  **State**: Redis manages active "Session State" for <10ms latency updates.
+
+---
+
+## 📸 Process Walkthrough
+
+A visual guide to the Virex AI recruitment process.
+
+### 1. Recruiter Login
+*Secure entry point for HR professionals.*
+![Recruiter Login](img/Screenshot%202026-01-29%20221529.png)
+
+### 2. Recruitment Dashboard
+*Central hub for managing active job postings and candidate pipelines.*
+![Recruitment Dashboard](img/Screenshot%202026-01-29%20221553.png)
+
+### 3. Job Configuration
+*Setting up specific role templates and defining JD parameters.*
+![Job Configuration](img/Screenshot%202026-01-29%20221652.png)
+
+### 4. Bulk Resume Upload
+*Drag-and-drop interface for ingesting hundreds of resumes instantly.*
+![Bulk Resume Upload](img/Screenshot%202026-01-29%20221702.png)
+
+### 5. Automated Screening Results
+*AI-ranked list of candidates based on resume-JD alignment.*
+![Automated Screening](img/Screenshot%202026-01-29%20221831.png)
+
+### 6. Candidate Access Portal
+*The candidate's landing page for starting their assigned interview.*
+![Candidate Access](img/Screenshot%202026-01-29%20221846.png)
+
+### 7. System Compatibility Check
+*Verifying permission for Microphone, Camera, and Low-Latency Audio.*
+![System Check](img/Screenshot%202026-01-29%20221928.png)
+
+### 8. Intelligent Interviewing
+*The core AVI interface where the autonomous interview takes place.*
+![Intelligent Interviewing](img/Screenshot%202026-01-29%20221953.png)
+
+### 9. Dynamic Contextual Interaction
+*The AI asking deep follow-up questions based on real-time responses.*
+![Dynamic Interaction](img/Screenshot%202026-01-29%20222035.png)
+
+### 10. Session Conclusion
+*Formal completion of the interview and data submission.*
+![Session Conclusion](img/Screenshot%202026-01-29%20222119.png)
+
+### 11. Final Hiring Board
+*The ultimate decision board showing the weighted Resume + Interview score.*
+![Final Hiring Board](img/Screenshot%202026-01-29%20222138.png)
 
 ---
 
@@ -133,6 +183,9 @@ cp .env.example .env
 
 # Run Server
 uvicorn app.main:app --reload
+
+#ngrok tunnel
+.\scripts\start_local_access.ps1
 ```
 
 ### 3. Frontend Setup
@@ -148,6 +201,20 @@ npm run dev
 
 Visit the dashboard at `http://localhost:3000`.
 
+---
+
+---
+
+## 👥 Collaborative Team
+
+This project is the result of dedicated teamwork and innovation.
+
+| Name | Role | Socials |
+| :--- | :--- | :--- |
+| **Shresth Singh** | *Lead Developer & Architect* | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/ShresthSingh01) |
+| **Shree Sharma** | *Prompt Engineer & Frontend Developer* | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/Shree2501) |
+| **Mayank Rai** | *Full Stack Contributor* | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/mayank-ry) |
+| **Kartik Kumar** | *ElevenLabs & Core Scoring Logic Developer* | [![GitHub](https://img.shields.io/badge/GitHub-100000?style=flat&logo=github&logoColor=white)](https://github.com/kARTIK-K30) |
 ---
 
 ## 🔮 Future Roadmap (v2.0)
